@@ -39,7 +39,10 @@ def register_service(db, data):
     user = db.query(User).filter(User.username == data.username).first()
 
     if user:
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(400, {
+            'code': "USER_ALREADY_EXISTS",
+            'message': "User already exists"
+        })
 
     # tao user moi
     new_user = User(
@@ -58,15 +61,16 @@ def register_service(db, data):
 def login_service(db, data):
     user = db.query(User).filter(User.username == data.username).first()
 
-    print(user.password)
-
-
-
     if not user:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise HTTPException(404, {
+            'code': "USER_NOT_FOUND",
+            'message': "User not found"
+        })
     if not verify_password(data.password, user.password):
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
+        raise HTTPException(404, {
+            'code': "INCORRECT_PASSWORD",
+            'message': "Incorrect password"
+        })
 
     token = create_access_token(data={"sub": user.username})
     refresh_token = create_refresh_token(data={"sub": user.username})

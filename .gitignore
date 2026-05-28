@@ -1,0 +1,68 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environment variables
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Pytest
+.pytest_cache/
+
+# Mypy
+.mypy_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# SQLite
+*.db
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+
+# PyCharm
+*.iml
+
+# Uploaded files / media
+uploads/
+media/
+
+# Alembic migrations cache
+alembic/__pycache__/
+
+# Requirements generated files
+pip-wheel-metadata/
+
+# Test output
+test-results/
+test.py

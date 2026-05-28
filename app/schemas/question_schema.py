@@ -10,3 +10,8 @@ class QuestionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ReviewQuestionResponse(QuestionResponse):
+    is_correct: bool
+    selectedOptionID: int
+

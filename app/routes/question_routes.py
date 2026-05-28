@@ -11,5 +11,8 @@ db = SessionLocal()
 def get_questions(question_id: int):
     question = db.query(Question).filter(Question.questionID == question_id).first()
     if not question:
-        raise HTTPException(status_code=404, detail="Question not found")
+        raise HTTPException(404, {
+            "code": "QUESTION_NOT_FOUND",
+            "message": "Question not found"
+        })
     return question

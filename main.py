@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+
 from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
@@ -19,17 +19,63 @@ from app.models.document_model import Document
 from app.models.news_model import News
 from app.models.user_answers import UserAnswers
 
-app = FastAPI()
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 Base.metadata.create_all(bind=engine)
-app.include_router(user_router)
-app.include_router(auth_router)
-app.include_router(subject_router)
-app.include_router(news_router)
-app.include_router(document_router)
-app.include_router(question_router)
-app.include_router(exam_router)
-app.include_router(result_router)
-@app.get("/")
-def home():
-    return {"Hello": "World"}
+
+def create_app() -> FastAPI:
+    app = FastAPI()
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        detail = exc.detail
+        if isinstance(detail, dict) and "code" in detail:
+            error = detail
+        else:
+            error = {"code": "UNKNOWN_ERROR", "message": str(detail)}
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"success": False, "error": error},
+        )
+
+    app.include_router(auth_router)
+    app.include_router(user_router)
+
+    app.include_router(subject_router)
+    app.include_router(news_router)
+    app.include_router(document_router)
+    app.include_router(question_router)
+    app.include_router(exam_router)
+    app.include_router(result_router)
+
+    return app
+
+app = create_app()
+
+
+
+#
+# @app.exception_handler(HTTPException)
+#     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+#         detail = exc.detail
+#         if isinstance(detail, dict) and "code" in detail:
+#             error = detail
+#         else:
+#             error = {"code": "UNKNOWN_ERROR", "message": str(detail)}
+#         return JSONResponse(
+#             status_code=exc.status_code,
+#             content={"success": False, "error": error},
+#         )
+#
+# app.include_router(user_router)
+# app.include_router(auth_router)
+# app.include_router(subject_router)
+# app.include_router(news_router)
+# app.include_router(document_router)
+# app.include_router(question_router)
+# app.include_router(exam_router)
+# app.include_router(result_router)
+# @app.get("/")
+# def home():
+#     return {"Hello": "World"}

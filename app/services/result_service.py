@@ -10,7 +10,10 @@ def submit_exam_service(db, data):
     for ans in data.answers:
         option = db.query(QuestionOption).filter(QuestionOption.questionoptionID == ans.selectedOptionID).first()
         if not option:
-            raise HTTPException(status_code=404, detail="Option not found")
+            raise HTTPException(404, {
+                'code': "OPTION_NOT_FOUND",
+                'message': "Option not found"
+            })
         if option.is_correct:
             score += 1
 

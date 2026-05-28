@@ -18,9 +18,10 @@ def get_news():
 def get_single_news(news_id: int):
     news = db.query(News).filter(News.newsID == news_id).first()
     if not news:
-        raise HTTPException(
-            status_code=404,
-            detail="News not found"
+        raise HTTPException(404, {
+            "code": "NEWS_NOT_FOUND",
+            "message": "News not found"
+            }
         )
     return news
 
@@ -44,9 +45,10 @@ def update_news(news_id: int, news: CreateNews):
 
     n = db.query(News).filter(News.newsID == news_id).first()
     if not n:
-        raise HTTPException(
-            status_code=404,
-            detail="News not found"
+        raise HTTPException(404,{
+            "code": "NEWS_NOT_FOUND",
+            "message": "News not found"
+            }
         )
     n.title = news.title
     n.content = news.content
@@ -63,9 +65,10 @@ def update_news(news_id: int, news: CreateNews):
 def delete_news(news_id: int):
     n = db.query(News).filter(News.newsID == news_id).first()
     if not n:
-        raise HTTPException(
-            status_code=404,
-            detail="News not found"
+        raise HTTPException(404,{
+            "code": "NEWS_NOT_FOUND",
+            "message": "News not found"
+            }
         )
     db.delete(n)
     db.commit()

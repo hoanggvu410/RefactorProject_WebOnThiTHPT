@@ -14,14 +14,20 @@ def get_users():
 def get_user(user_id: int):
     u = db.query(User).filter(User.userID == user_id).first()
     if not u:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
     return u
 
 @router.put("/{user_id}")
 def update_user(user_id: int, user: RegisterUser):
     u = db.query(User).filter(User.userID == user_id).first()
     if not u:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
 
     u.name = user.name
     u.username = user.username
@@ -35,7 +41,10 @@ def update_user(user_id: int, user: RegisterUser):
 def delete_user(user_id: int):
     u = db.query(User).filter(User.userID == user_id).first()
     if not u:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
     db.delete(u)
     db.commit()
     return {"message": "User deleted successfully"}

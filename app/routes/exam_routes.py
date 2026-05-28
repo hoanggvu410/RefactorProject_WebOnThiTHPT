@@ -14,7 +14,10 @@ def get_exam():
 def get_exam_by_id(exam_id: int):
     exam = db.query(Exam).filter(Exam.examID == exam_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
+        raise HTTPException(404, {
+            "code": "EXAM_NOT_FOUND",
+            "message": "Exam not found"
+        })
     return exam
 
 

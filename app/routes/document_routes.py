@@ -18,8 +18,10 @@ def get_document(document_id: int):
     d = db.query(Document).filter(Document.documentID == document_id).first()
     if not d:
         raise HTTPException(
-            status_code=404,
-            detail="Document not found"
+            404, {
+                "code": "DOCUMENT_NOT_FOUND",
+                "message": "Document not found"
+            }
         )
     return d
 
@@ -45,9 +47,10 @@ def update_document(document_id: int, document: CreateDocument):
 
     d = db.query(Document).filter(Document.documentID == document_id).first()
     if not d:
-        raise HTTPException(
-            status_code=404,
-            detail="Document not found"
+        raise HTTPException(404, {
+            "code": "DOCUMENT_NOT_FOUND",
+            "message": "Document not found"
+        }
         )
     d.title = document.title
     d.link = document.link
