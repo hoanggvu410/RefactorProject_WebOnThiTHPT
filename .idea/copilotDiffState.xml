@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="/config (snapshot).py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="/config (snapshot).py" />
+              <option name="updatedContent" value="from pydantic_settings import BaseSettings&#10;from functools import lru_cache&#10;&#10;&#10;class Settings(BaseSettings):&#10;    &quot;&quot;&quot;Configuration class for FastAPI application&quot;&quot;&quot;&#10;    database_url: str = &quot;postgresql://postgres:123456@localhost:5432/postgres&quot;&#10;    &#10;    class Config:&#10;        env_file = &quot;.env&quot;&#10;        env_file_encoding = &quot;utf-8&quot;&#10;&#10;&#10;@lru_cache&#10;def get_settings():&#10;    &quot;&quot;&quot;Get cached settings instance&quot;&quot;&quot;&#10;    return Settings()&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

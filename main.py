@@ -1,0 +1,35 @@
+from fastapi import FastAPI
+from app.base.db import engine, Base
+from app.routes.user_routes import router as user_router
+from app.routes.auth_routes import router as auth_router
+from app.routes.subject_routes import router as subject_router
+from app.routes.news_routes import router as news_router
+from app.routes.document_routes import router as document_router
+from app.routes.question_routes import router as question_router
+from app.routes.exam_routes import router as exam_router
+from app.routes.results_routes import router as result_router
+from app.models.user_model import User
+from app.models.result_model import Result
+from app.models.exam_model import Exam
+from app.models.question_model import Question
+from app.models.question_option_model import QuestionOption
+from app.models.exam_question_model import ExamQuestion
+from app.models.subject_model import Subject
+from app.models.document_model import Document
+from app.models.news_model import News
+from app.models.user_answers import UserAnswers
+
+app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
+app.include_router(user_router)
+app.include_router(auth_router)
+app.include_router(subject_router)
+app.include_router(news_router)
+app.include_router(document_router)
+app.include_router(question_router)
+app.include_router(exam_router)
+app.include_router(result_router)
+@app.get("/")
+def home():
+    return {"Hello": "World"}
