@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 
 from app.base.db import SessionLocal
 from app.models.question_model import Question
 from app.schemas.question_schema import QuestionResponse
+from app.dependencies.auth_dependency import get_current_user
 
-router = APIRouter(prefix="/questions", tags=["Questions"])
+router = APIRouter(prefix="/questions", tags=["Questions"], dependencies=[Depends(get_current_user)])
 db = SessionLocal()
 
 @router.get("/{question_id}", response_model= QuestionResponse)

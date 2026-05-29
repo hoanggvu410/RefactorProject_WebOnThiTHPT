@@ -1,14 +1,23 @@
-from dns.e164 import query
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 from app.models.user_model import User
 from app.schemas.auth_schema import RegisterUser
 from app.base.db import SessionLocal
+from app.dependencies.auth_dependency import get_current_user
+from app.dependencies.auth_dependency import require_roles
 
-router = APIRouter(prefix = "/users")
+router = APIRouter(prefix = "/users", tags = ["Users"], dependencies = [Depends(require_roles("admin"))])
 db = SessionLocal()
 @router.get("/")
 def get_users():
     return db.query(User).all()
+
+@router.get("/profile")
+def get_user_profile(user = Depends(get_current_user)):
+    return {
+        "username": user.get("sub"),
+        "role": user.get("role")
+            }
 
 @router.get("/{user_id}")
 def get_user(user_id: int):

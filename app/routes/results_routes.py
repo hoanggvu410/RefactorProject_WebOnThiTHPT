@@ -1,6 +1,7 @@
 from importlib.resources import contents
 
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 
 from app.models.result_model import Result
 from app.base.db import SessionLocal
@@ -9,8 +10,9 @@ from app.services.result_service import submit_exam_service
 from app.schemas.result_schema import ReviewResultResponse
 from app.models.question_option_model import QuestionOption
 from app.schemas.question_schema import ReviewQuestionResponse
+from app.dependencies.auth_dependency import get_current_user
 
-router = APIRouter(prefix="/results", tags=["Results"])
+router = APIRouter(prefix="/results", tags=["Results"], dependencies=[Depends(get_current_user)])
 db = SessionLocal()
 @router.get("/user/{user_id}")
 def get_result_by_userID(user_id:int):
@@ -36,7 +38,7 @@ def get_result_by_examID(user_id: int, exam_id:int):
 def submit_exam(exam: SubmitExam):
     return submit_exam_service(db, exam)
 
-@router.post("/review/{result_id}", response_model=ReviewResultResponse)
+@router.get("/review/{result_id}", response_model=ReviewResultResponse)
 def review_result_by_id(result_id: int):
     result = db.query(Result).filter(Result.resultID == result_id).first()
     if not result:

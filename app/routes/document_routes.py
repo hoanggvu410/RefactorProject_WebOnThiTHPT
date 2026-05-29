@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 
 from app.base.db import SessionLocal
 from app.models.document_model import Document
 from app.schemas.document_schema import CreateDocument
+from app.dependencies.auth_dependency import get_current_user
 
-router = APIRouter(prefix="/documents")
+router = APIRouter(prefix="/documents", tags=["Documents"], dependencies=[Depends(get_current_user)])
 db = SessionLocal()
 
 @router.get("/")

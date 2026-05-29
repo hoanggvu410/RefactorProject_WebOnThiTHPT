@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 
 from app.base.db import SessionLocal
 from app.models.news_model import News
 from app.schemas.news_schema import CreateNews
+from app.dependencies.auth_dependency import get_current_user
 
-
-router = APIRouter(prefix="/news")
+router = APIRouter(prefix="/news", dependencies=[Depends(get_current_user)])
 db = SessionLocal()
 
 @router.get("/")

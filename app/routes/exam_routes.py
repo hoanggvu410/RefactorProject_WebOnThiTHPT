@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.params import Depends
 
 from app.base.db import SessionLocal
 from app.models.exam_model import Exam
 from app.schemas.exam_schema import ExamResponse, SubmitExam
+from app.dependencies.auth_dependency import get_current_user
 
-router = APIRouter(prefix="/exam", tags=["Exam"])
+router = APIRouter(prefix="/exam", tags=["Exam"], dependencies= [Depends(get_current_user)])
 db = SessionLocal()
 @router.get("/")
 def get_exam():

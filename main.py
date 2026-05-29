@@ -18,6 +18,7 @@ from app.models.subject_model import Subject
 from app.models.document_model import Document
 from app.models.news_model import News
 from app.models.user_answers import UserAnswers
+from app.models.refresh_token_model import RefreshToken
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -41,7 +42,6 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(user_router)
-
     app.include_router(subject_router)
     app.include_router(news_router)
     app.include_router(document_router)
