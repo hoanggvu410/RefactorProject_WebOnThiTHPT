@@ -18,6 +18,12 @@ def get_exam_by_id(exam_id: int):
             "code": "EXAM_NOT_FOUND",
             "message": "Exam not found"
         })
-    return exam
+    return ExamResponse(
+        examID = exam.examID,
+        title = exam.title,
+        questionNumber=exam.questionNumber,
+        duration = exam.duration,
+        questions = exam.questions
+    )
 
 

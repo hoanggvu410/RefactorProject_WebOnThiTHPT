@@ -12,7 +12,7 @@ Mục tiêu của project:
 - Tổ chức code theo chuẩn backend thực tế
 - Học và áp dụng kiến trúc backend hiện đại
 
- 2. Tech Stack
+## 2. Tech Stack
 Backend
 - Python
 - FastAPI

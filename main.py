@@ -54,28 +54,3 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-
-#
-# @app.exception_handler(HTTPException)
-#     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-#         detail = exc.detail
-#         if isinstance(detail, dict) and "code" in detail:
-#             error = detail
-#         else:
-#             error = {"code": "UNKNOWN_ERROR", "message": str(detail)}
-#         return JSONResponse(
-#             status_code=exc.status_code,
-#             content={"success": False, "error": error},
-#         )
-#
-# app.include_router(user_router)
-# app.include_router(auth_router)
-# app.include_router(subject_router)
-# app.include_router(news_router)
-# app.include_router(document_router)
-# app.include_router(question_router)
-# app.include_router(exam_router)
-# app.include_router(result_router)
-# @app.get("/")
-# def home():
-#     return {"Hello": "World"}

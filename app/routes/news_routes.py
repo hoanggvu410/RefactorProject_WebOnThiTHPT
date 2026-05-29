@@ -36,9 +36,12 @@ def create_news(news: CreateNews):
 
     db.add(new_news)
     db.commit()
-    return {
-        "message": "News created successfully"
-    }
+    return CreateNews(
+        title=news.title,
+        content=news.content,
+        link=news.link,
+        date=news.date
+    )
 
 @router.put("/{news_id}")
 def update_news(news_id: int, news: CreateNews):

@@ -1,3 +1,5 @@
+from importlib.resources import contents
+
 from fastapi import APIRouter, HTTPException
 
 from app.models.result_model import Result
@@ -6,6 +8,7 @@ from app.schemas.exam_schema import SubmitExam
 from app.services.result_service import submit_exam_service
 from app.schemas.result_schema import ReviewResultResponse
 from app.models.question_option_model import QuestionOption
+from app.schemas.question_schema import ReviewQuestionResponse
 
 router = APIRouter(prefix="/results", tags=["Results"])
 db = SessionLocal()
@@ -52,19 +55,14 @@ def review_result_by_id(result_id: int):
                 "code": "QUESTION_NOT_FOUND",
                 "message": "Question not found"
             })
-        review_questions.append({
-            "questionID": question.questionID,
-            "content": question.content,
-            "questionOptions": question.questionOptions,
-            "is_correct": answer.selectedOptionID == correct_answer.questionoptionID,
-            "selectedOption":answer.selectedOptionID
-        })
-    # return{
-    #     "title": result.exam.title,
-    #     "score": result.score,
-    #     "timeSpent": result.timeSpent,
-    #     "questions": review_questions
-    # }
+        review_questions.append(ReviewQuestionResponse (
+            questionID = question.questionID,
+            content = question.content,
+            questionOptions = question.questionOptions,
+            is_correct = (answer.selectedOptionID == correct_answer.questionoptionID),
+            selectedOptionID = answer.selectedOptionID
+        )
+        )
 
     return ReviewResultResponse(
         title=result.title,

@@ -38,9 +38,12 @@ def create_document(document: CreateDocument):
 
     db.add(new_document)
     db.commit()
-    return {
-        "message": "Document created successfully"
-    }
+    return CreateDocument(
+        title=new_document.title,
+        link=new_document.link,
+        grade=new_document.grade,
+        subjectID=new_document.subjectID
+    )
 
 @router.put("/{document_id}")
 def update_document(document_id: int, document: CreateDocument):
@@ -62,8 +65,6 @@ def update_document(document_id: int, document: CreateDocument):
     return {
         "message": "Document updated successfully"
     }
-
-
 
 
 @router.delete("/{document_id}")

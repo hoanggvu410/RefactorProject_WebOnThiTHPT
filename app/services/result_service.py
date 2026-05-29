@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from app.models.question_option_model import QuestionOption
 from app.models.result_model import Result
 from app.models.user_answers import UserAnswers
+from app.schemas.exam_schema import SubmitExam
 
 
 def submit_exam_service(db, data):
@@ -39,9 +40,9 @@ def submit_exam_service(db, data):
         db.add(user_answers)
     db.commit()
 
-    return {
-        "message": "Exam submitted successfully",
-        "diem": score,
-        "thoi gian lam bai": exam_result.timeSpent
-    }
-
+    return SubmitExam(
+        userID=exam_result.userID,
+        examID=exam_result.examID,
+        answers=data.answers,
+        timeSpent=exam_result.timeSpent
+    )

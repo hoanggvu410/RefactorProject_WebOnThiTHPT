@@ -15,4 +15,9 @@ def get_questions(question_id: int):
             "code": "QUESTION_NOT_FOUND",
             "message": "Question not found"
         })
-    return question
+    return QuestionResponse(
+        questionID = question.questionID,
+        content = question.content,
+        questionOptions=question.questionOptions
+    )
+
