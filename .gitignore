@@ -65,4 +65,3 @@ pip-wheel-metadata/
 
 # Test output
 test-results/
-test.py

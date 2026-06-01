@@ -5,6 +5,7 @@ from app.schemas.auth_schema import RegisterUser
 from app.base.db import SessionLocal
 from app.dependencies.auth_dependency import get_current_user
 from app.dependencies.auth_dependency import require_roles
+from app.services.auth_service import hash_password
 
 router = APIRouter(prefix = "/users", tags = ["Users"], dependencies = [Depends(require_roles("admin"))])
 db = SessionLocal()
@@ -40,7 +41,7 @@ def update_user(user_id: int, user: RegisterUser):
 
     u.name = user.name
     u.username = user.username
-    u.password = user.password
+    u.password = hash_password(user.password)
     u.mail = user.mail
     u.grade = user.grade
     db.commit()

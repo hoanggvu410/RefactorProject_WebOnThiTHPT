@@ -1,4 +1,6 @@
 
+from pathlib import Path
+
 from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
@@ -21,9 +23,12 @@ from app.models.user_answers import UserAnswers
 from app.models.refresh_token_model import RefreshToken
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 Base.metadata.create_all(bind=engine)
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 def create_app() -> FastAPI:
     app = FastAPI()
@@ -49,8 +54,13 @@ def create_app() -> FastAPI:
     app.include_router(exam_router)
     app.include_router(result_router)
 
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+    @app.get("/")
+    def serve_frontend():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
     return app
 
 app = create_app()
-
 

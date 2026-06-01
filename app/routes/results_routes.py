@@ -67,7 +67,7 @@ def review_result_by_id(result_id: int):
         )
 
     return ReviewResultResponse(
-        title=result.title,
+        examID=result.examID,
         score=result.score,
         timeSpent=result.timeSpent,
         questions=review_questions

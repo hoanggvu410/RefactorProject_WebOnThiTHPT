@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Ôn Thi THPT</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="topbar">
+      <div>
+        <h1>Web Ôn Thi THPT</h1>
+        <p>Giao diện đơn giản để đăng nhập, tra cứu kết quả và xem review bài thi.</p>
+      </div>
+      <div class="status-row">
+        <span class="status" id="authStatus">Chưa đăng nhập</span>
+        <span class="status" id="tokenState">Token: chưa có</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Đăng nhập</h2>
+      <div class="form-grid">
+        <label>
+          <span>Username</span>
+          <input id="username" type="text" placeholder="Nhập username" />
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="password" type="password" placeholder="Nhập password" />
+        </label>
+      </div>
+      <div class="button-row">
+        <button id="btnLogin" class="primary">Đăng nhập</button>
+        <button id="btnLogout" class="secondary">Đăng xuất</button>
+        <button id="btnLoadProfile" class="secondary">Tải profile</button>
+      </div>
+      <p class="note">Sau khi đăng nhập, token sẽ được lưu ở trình duyệt.</p>
+      <div class="mini-info" id="profileState">Profile: -</div>
+    </section>
+
+    <section class="card">
+      <h2>Tra cứu kết quả</h2>
+      <div class="form-grid two">
+        <label>
+          <span>User ID</span>
+          <input id="userId" type="number" min="1" placeholder="VD: 1" />
+        </label>
+        <label>
+          <span>Result ID</span>
+          <input id="resultId" type="number" min="1" placeholder="VD: 1" />
+        </label>
+      </div>
+      <div class="button-row">
+        <button id="btnLoadResults" class="primary">Xem kết quả</button>
+        <button id="btnReviewResult" class="secondary">Xem review</button>
+        <button id="btnLoadSubjects" class="secondary">Môn học</button>
+        <button id="btnLoadExams" class="secondary">Đề thi</button>
+        <button id="btnLoadDocuments" class="secondary">Tài liệu</button>
+        <button id="btnLoadNews" class="secondary">Tin tức</button>
+      </div>
+      <div class="metric-row">
+        <div><span>Tổng bài</span><strong id="resultCount">0</strong></div>
+        <div><span>Điểm cao nhất</span><strong id="bestScore">-</strong></div>
+        <div><span>Trạng thái</span><strong id="resultStatus">Sẵn sàng</strong></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Danh sách kết quả</h2>
+        <div id="resultsList" class="table-box"></div>
+      </div>
+
+      <div class="card">
+        <h2>Review bài thi</h2>
+        <div id="reviewBox" class="content-box empty">Chọn Result ID để xem review.</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Môn học</h2>
+        <div id="subjectsList" class="list-box"></div>
+      </div>
+
+      <div class="card">
+        <h2>Đề thi</h2>
+        <div id="examsList" class="table-box"></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Tài liệu</h2>
+        <div id="documentsList" class="table-box"></div>
+      </div>
+
+      <div class="card">
+        <h2>Tin tức</h2>
+        <div id="newsList" class="table-box"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
