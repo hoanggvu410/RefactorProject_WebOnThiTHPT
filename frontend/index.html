@@ -7,21 +7,36 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <main class="container">
-    <header class="topbar">
-      <div>
-        <h1>Web Ôn Thi THPT</h1>
-        <p>Giao diện đơn giản để đăng nhập, tra cứu kết quả và xem review bài thi.</p>
+  <!-- Header -->
+<header class="header">
+    <div class="header-container">
+      <div class="logo">
+        <span class="logo-icon">📚</span>
+        <span class="logo-text">OnThiTHPT</span>
       </div>
-      <div class="status-row">
-        <span class="status" id="authStatus">Chưa đăng nhập</span>
-        <span class="status" id="tokenState">Token: chưa có</span>
+      <nav class="nav">
+        <a href="#/" class="nav-link" id="navHome">Trang chủ</a>
+        <a href="#/news" class="nav-link">Tin tức</a>
+        <a href="#/subjects" class="nav-link">Môn học</a>
+        <a href="#/exams" class="nav-link">Đề thi</a>
+        <a href="#/documents" class="nav-link">Tài liệu</a>
+        </nav>
+      <div class="header-actions">
+        <span class="user-info" id="userInfo" style="font-weight: 600; color: var(--text);">Chưa đăng nhập</span>
+        <button id="btnLoginModal" class="btn-login">Đăng nhập</button>
+        <button id="btnLogoutNavbar" class="btn-secondary" style="display: none;">Đăng xuất</button>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <section class="card">
-      <h2>Đăng nhập</h2>
-      <div class="form-grid">
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Đăng nhập</h2>
+        <button id="closeModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
         <label>
           <span>Username</span>
           <input id="username" type="text" placeholder="Nhập username" />
@@ -30,79 +45,183 @@
           <span>Password</span>
           <input id="password" type="password" placeholder="Nhập password" />
         </label>
+        <div class="modal-actions">
+          <button id="btnLogin" class="btn-primary">Đăng nhập</button>
+          <button id="btnLogout" class="btn-secondary" style="display: none;">Đăng xuất</button>
+        </div>
       </div>
-      <div class="button-row">
-        <button id="btnLogin" class="primary">Đăng nhập</button>
-        <button id="btnLogout" class="secondary">Đăng xuất</button>
-        <button id="btnLoadProfile" class="secondary">Tải profile</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- HOME PAGE -->
+    <section id="page-home">
+      <!-- Tin tức nổi bật -->
+      <section class="section-title">
+        <h2>📰 Tin tức nổi bật</h2>
+      </section>
+      <div class="content-box" id="newsList"></div>
+
+      <!-- Các môn học -->
+      <section class="section-title">
+        <h2>📚 Các môn học</h2>
+      </section>
+      <div class="subjects-filter">
+        <select id="classSelector" class="class-selector">
+          <option value="">-- Chọn lớp --</option>
+          <option value="10">Lớp 10</option>
+          <option value="11">Lớp 11</option>
+          <option value="12">Lớp 12</option>
+        </select>
+        <button id="btnPracticeToday" class="btn-primary" style="display: none;">Luyện tập hôm nay</button>
+        <span id="practiceStatus" style="color: #666; display: none;"></span>
       </div>
-      <p class="note">Sau khi đăng nhập, token sẽ được lưu ở trình duyệt.</p>
-      <div class="mini-info" id="profileState">Profile: -</div>
+      <section class="grid-cards" id="subjectsGrid">
+        <!-- Filled by JS -->
+      </section>
+
+      <!-- Kết quả (chỉ hiển thị khi đã đăng nhập) -->
+      <section id="results-section" class="logged-in-only" style="display: none;">
+        <section class="section-title">
+          <h2>📊 Kết quả của bạn</h2>
+        </section>
+        <div class="search-section">
+          <div class="search-box">
+            <input type="number" id="userId" placeholder="Nhập User ID để tra cứu kết quả..." />
+            <button id="btnLoadResults" class="btn-primary">Xem kết quả</button>
+          </div>
+          <div class="status-info">
+            <span id="resultStatus">Trạng thái: Sẵn sàng</span>
+            <span id="resultCount">Tổng bài: 0</span>
+            <span id="bestScore">Điểm cao nhất: -</span>
+          </div>
+        </div>
+        <div class="content-box" id="resultsList"></div>
+
+        <section class="section-title">
+          <h2>🔍 Chi tiết bài thi</h2>
+        </section>
+        <div class="search-section">
+          <div class="search-box">
+            <input type="number" id="resultId" placeholder="Nhập Result ID để xem review..." />
+            <button id="btnReviewResult" class="btn-secondary">Review bài thi</button>
+          </div>
+        </div>
+        <div class="content-box" id="reviewBox"></div>
+      </section>
+
+      <!-- Đề thi -->
+      <section class="section-title">
+        <h2>✏️ Đề thi</h2>
+      </section>
+      <div class="content-box" id="examsList"></div>
+
+      <!-- Tài liệu -->
+      <section class="section-title">
+        <h2>📖 Tài liệu</h2>
+      </section>
+      <div class="content-box" id="documentsList"></div>
     </section>
 
-    <section class="card">
-      <h2>Tra cứu kết quả</h2>
-      <div class="form-grid two">
-        <label>
-          <span>User ID</span>
-          <input id="userId" type="number" min="1" placeholder="VD: 1" />
-        </label>
-        <label>
-          <span>Result ID</span>
-          <input id="resultId" type="number" min="1" placeholder="VD: 1" />
-        </label>
-      </div>
-      <div class="button-row">
-        <button id="btnLoadResults" class="primary">Xem kết quả</button>
-        <button id="btnReviewResult" class="secondary">Xem review</button>
-        <button id="btnLoadSubjects" class="secondary">Môn học</button>
-        <button id="btnLoadExams" class="secondary">Đề thi</button>
-        <button id="btnLoadDocuments" class="secondary">Tài liệu</button>
-        <button id="btnLoadNews" class="secondary">Tin tức</button>
-      </div>
-      <div class="metric-row">
-        <div><span>Tổng bài</span><strong id="resultCount">0</strong></div>
-        <div><span>Điểm cao nhất</span><strong id="bestScore">-</strong></div>
-        <div><span>Trạng thái</span><strong id="resultStatus">Sẵn sàng</strong></div>
-      </div>
+    <!-- NEWS PAGE -->
+    <section id="page-news" class="hidden">
+      <section class="section-title">
+        <h2>📰 Tin tức</h2>
+      </section>
+      <div class="content-box" id="newsFullList"></div>
     </section>
 
-    <section class="grid">
-      <div class="card">
-        <h2>Danh sách kết quả</h2>
-        <div id="resultsList" class="table-box"></div>
+    <!-- SUBJECTS PAGE -->
+    <section id="page-subjects" class="hidden">
+      <section class="section-title">
+        <h2>📚 Môn học</h2>
+      </section>
+      <div class="subjects-filter">
+        <select id="classSelectorSubjects" class="class-selector">
+          <option value="">-- Chọn lớp --</option>
+          <option value="10">Lớp 10</option>
+          <option value="11">Lớp 11</option>
+          <option value="12">Lớp 12</option>
+        </select>
+        <button id="btnPracticeTodaySubjects" class="btn-primary">Luyện tập hôm nay</button>
+        <span id="practiceStatusSubjects" style="color: #666; display: none;"></span>
       </div>
-
-      <div class="card">
-        <h2>Review bài thi</h2>
-        <div id="reviewBox" class="content-box empty">Chọn Result ID để xem review.</div>
-      </div>
+      <section class="grid-cards" id="subjectsGridFull">
+        <!-- Filled by JS -->
+      </section>
     </section>
 
-    <section class="grid">
-      <div class="card">
-        <h2>Môn học</h2>
-        <div id="subjectsList" class="list-box"></div>
-      </div>
-
-      <div class="card">
-        <h2>Đề thi</h2>
-        <div id="examsList" class="table-box"></div>
-      </div>
+    <!-- EXAMS PAGE -->
+    <section id="page-exams" class="hidden">
+      <section class="section-title">
+        <h2>✏️ Đề thi</h2>
+      </section>
+      <div class="content-box" id="examsFullList"></div>
     </section>
 
-    <section class="grid">
-      <div class="card">
-        <h2>Tài liệu</h2>
-        <div id="documentsList" class="table-box"></div>
-      </div>
+    <!-- DOCUMENTS PAGE -->
+    <section id="page-documents" class="hidden">
+      <section class="section-title">
+        <h2>📖 Tài liệu</h2>
+      </section>
+      <div class="content-box" id="documentsFullList"></div>
+    </section>
 
-      <div class="card">
-        <h2>Tin tức</h2>
-        <div id="newsList" class="table-box"></div>
+    <!-- RESULTS PAGE -->
+    <section id="page-results" class="hidden">
+      <section class="section-title">
+        <h2>📊 Kết quả của bạn</h2>
+      </section>
+      <div class="search-section">
+        <div class="search-box">
+          <input type="number" id="userIdResults" placeholder="Nhập User ID để tra cứu kết quả..." />
+          <button id="btnLoadResultsPage" class="btn-primary">Xem kết quả</button>
+        </div>
+        <div class="status-info">
+          <span id="resultStatusPage">Trạng thái: Sẵn sàng</span>
+          <span id="resultCountPage">Tổng bài: 0</span>
+          <span id="bestScorePage">Điểm cao nhất: -</span>
+        </div>
       </div>
+      <div class="content-box" id="resultsListPage"></div>
+
+      <section class="section-title">
+        <h2>🔍 Chi tiết bài thi</h2>
+      </section>
+      <div class="search-section">
+        <div class="search-box">
+          <input type="number" id="resultIdPage" placeholder="Nhập Result ID để xem review..." />
+          <button id="btnReviewResultPage" class="btn-secondary">Review bài thi</button>
+        </div>
+      </div>
+      <div class="content-box" id="reviewBoxPage"></div>
     </section>
   </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2026 Web Ôn Thi THPT. Tất cả quyền được bảo vệ.</p>
+  </footer>
+  
+<div id="toastNotification" class="hidden" style="
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #4caf50;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 9999;
+    font-weight: 600;
+    transition: opacity 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  ">
+    <span>🎉</span> <span id="toastMessage">Đăng nhập thành công!</span>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

@@ -1,31 +1,31 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.params import Depends
+from uuid import UUID
 
-from app.base.db import SessionLocal
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.models.exam_model import Exam
-from app.schemas.exam_schema import ExamResponse, SubmitExam
+from app.schemas.exam_schema import ExamResponse
 from app.dependencies.auth_dependency import get_current_user
+from app.dependencies.db_dependency import get_db
+from app.schemas.exam_schema import ExamQueryParams
+from app.services import exam_service
 
-router = APIRouter(prefix="/exam", tags=["Exam"], dependencies= [Depends(get_current_user)])
-db = SessionLocal()
+router = APIRouter(prefix="/exam", tags=["Exam"], dependencies=[Depends(get_current_user)])
+
 @router.get("/")
-def get_exam():
-    return db.query(Exam).all()
+def get_exams(params: ExamQueryParams, db: Session = Depends(get_db)):
+    return exam_service.get_exams(params, db)
 
-@router.get("/{exam_id}", response_model=ExamResponse)
-def get_exam_by_id(exam_id: int):
-    exam = db.query(Exam).filter(Exam.examID == exam_id).first()
+@router.get("/{exam_uuid}", response_model=ExamResponse)
+def get_exam_by_uuid(exam_uuid: UUID, db: Session = Depends(get_db)):
+    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
     if not exam:
-        raise HTTPException(404, {
-            "code": "EXAM_NOT_FOUND",
-            "message": "Exam not found"
-        })
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
     return ExamResponse(
-        examID = exam.examID,
-        title = exam.title,
-        questionNumber=exam.questionNumber,
-        duration = exam.duration,
-        questions = exam.questions
+        exam_uuid = exam.uuid,
+        title=exam.title,
+        questionNumber=exam.question_number,
+        duration=exam.duration,
+        questions=exam.questions
     )
 
 

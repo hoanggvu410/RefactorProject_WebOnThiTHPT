@@ -1,60 +1,48 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.params import Depends
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.models.user_model import User
 from app.schemas.auth_schema import RegisterUser
-from app.base.db import SessionLocal
-from app.dependencies.auth_dependency import get_current_user
-from app.dependencies.auth_dependency import require_roles
+from app.dependencies.auth_dependency import get_current_user, require_roles
 from app.services.auth_service import hash_password
+from app.dependencies.db_dependency import get_db
 
-router = APIRouter(prefix = "/users", tags = ["Users"], dependencies = [Depends(require_roles("admin"))])
-db = SessionLocal()
+router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(require_roles("admin"))])
+
 @router.get("/")
-def get_users():
+def get_users(db: Session = Depends(get_db)):
     return db.query(User).all()
 
 @router.get("/profile")
-def get_user_profile(user = Depends(get_current_user)):
-    return {
-        "username": user.get("sub"),
-        "role": user.get("role")
-            }
+def get_user_profile(user=Depends(get_current_user)):
+    return {"username": user.get("sub"), "role": user.get("role")}
 
-@router.get("/{user_id}")
-def get_user(user_id: int):
-    u = db.query(User).filter(User.userID == user_id).first()
+@router.get("/{user_uuid}")
+def get_user(user_uuid: UUID, db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.uuid == user_uuid).first()
     if not u:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
+        raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
     return u
 
-@router.put("/{user_id}")
-def update_user(user_id: int, user: RegisterUser):
-    u = db.query(User).filter(User.userID == user_id).first()
+@router.put("/{user_uuid}")
+def update_user(user_uuid: UUID, user: RegisterUser, db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.uuid == user_uuid).first()
     if not u:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
-
+        raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
     u.name = user.name
     u.username = user.username
     u.password = hash_password(user.password)
-    u.mail = user.mail
+    u.email = user.mail
     u.grade = user.grade
     db.commit()
     return {"message": "User updated successfully"}
 
-@router.delete("/{user_id}")
-def delete_user(user_id: int):
-    u = db.query(User).filter(User.userID == user_id).first()
+@router.delete("/{user_uuid}")
+def delete_user(user_uuid: UUID, db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.uuid == user_uuid).first()
     if not u:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
+        raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
     db.delete(u)
     db.commit()
     return {"message": "User deleted successfully"}

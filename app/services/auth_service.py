@@ -1,28 +1,30 @@
-import os
-from dotenv import load_dotenv
+import hashlib
 from jose import jwt
 from datetime import timedelta, datetime
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from app.models.user_model import User
 from app.models.refresh_token_model import RefreshToken
+from config import get_settings
 
 #JWT
-load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY")
+settings = get_settings()
+SECRET_KEY = settings.SECRET_KEY
+REFRESH_SECRET_KEY = settings.REFRESH_SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 #Tao token
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=30)
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
@@ -37,8 +39,12 @@ def  verify_password(plain_password, hashed_password):
 
     return pwd_context.verify(plain_password, hashed_password)
 
+#hash token
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
 #register
-def register_service(db, data):
+def register(db, data):
     # kiem tra xem user da ton tai
     user = db.query(User).filter(User.username == data.username).first()
 
@@ -52,7 +58,7 @@ def register_service(db, data):
         name =  data.name,
         username = data.username,
         password = hash_password(data.password),
-        mail = data.mail,
+        email = data.email,
         grade = data.grade
     )
     db.add(new_user)
@@ -60,7 +66,7 @@ def register_service(db, data):
     return {"message": "user created successfully"}
 
 #login
-def login_service(db, data):
+def login(db, data):
     user = db.query(User).filter(User.username == data.username).first()
 
     if not user:
@@ -75,18 +81,19 @@ def login_service(db, data):
         })
     access_token = create_access_token(data={
         "sub": user.username,
-        "role": user.role
+        "role": user.role,
+        "user_id": user.user_id,
+        "user_uuid": str(user.uuid)
     })
     refresh_token = create_refresh_token(data={
-        "sub": user.username,
-        "role": user.role
+        "sub": user.username
     })
 
 #luu refresh token vao db
     db_token = RefreshToken(
-        user_id=user.userID,
-        token=refresh_token,
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        user_id=user.user_id,
+        hashed_token=hash_token(refresh_token),
+        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     )
     db.add(db_token)
     db.commit()
@@ -97,3 +104,43 @@ def login_service(db, data):
         "refresh_token": refresh_token
     }
 
+#refresh
+def refresh_token(db, data):
+    token_hash = hash_token(data.refresh_token)
+    token_record = db.query(RefreshToken).filter(RefreshToken.hashed_token == token_hash).first()
+    if not token_record:
+        raise HTTPException(401, {
+            'code': "INVALID_REFRESH_TOKEN",
+            'message': "Invalid refresh token"
+        })
+    if token_record.is_revoked:
+        raise HTTPException(401, {
+        'code': "REFRESH_TOKEN_REVOKED",
+        'message': "Refresh token has been revoked"
+        })
+    new_access_token = create_access_token(data={"sub": token_record.user.username})
+    return {"access_token": new_access_token, "token_type": "bearer"}
+
+#logout
+def logout(db, data):
+    token_hash = hash_token(data.refresh_token)
+    token_record = db.query(RefreshToken).filter(RefreshToken.hashed_token == token_hash).first()
+    token_record.is_revoked = True
+    db.commit()
+    return {"message": "Logout successfully"}
+
+def change_password(db, current_user, data):
+    user = db.query(User).filter(User.user_id == current_user.get("user_id")).first()
+    if not user:
+        raise HTTPException(404, {
+            'code': "USER_NOT_FOUND",
+            'message': "User not found"
+        })
+    if not verify_password(data.current_password, user.password):
+        raise HTTPException(401, {
+            'code': "AUTH_WRONG_PASSWORD",
+            'message': "Current password is wrong"
+        })
+    user.password = hash_password(data.new_password)
+    db.commit()
+    return {"message": "Đổi mật khẩu thành công"}

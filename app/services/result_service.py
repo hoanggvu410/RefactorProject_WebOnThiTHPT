@@ -1,15 +1,25 @@
 from fastapi import HTTPException
+from uuid import UUID
+from app.models.exam_model import Exam
 from app.models.question_option_model import QuestionOption
 from app.models.result_model import Result
-from app.models.user_answers import UserAnswers
+from app.models.user_answer_model import UserAnswer
 from app.schemas.exam_schema import SubmitExam
 
 
-def submit_exam_service(db, data):
-    #logic tinh diem
+def submit_exam(db, data, current_user):
+    # Get exam by uuid
+    exam = db.query(Exam).filter(Exam.uuid == data.exam_uuid).first()
+    if not exam:
+        raise HTTPException(404, {
+            'code': "EXAM_NOT_FOUND",
+            'message': "Exam not found"
+        })
+    
+    # Logic tinh diem
     score = 0
     for ans in data.answers:
-        option = db.query(QuestionOption).filter(QuestionOption.questionoptionID == ans.selectedOptionID).first()
+        option = db.query(QuestionOption).filter(QuestionOption.question_option_id == ans.selected_option_id).first()
         if not option:
             raise HTTPException(404, {
                 'code': "OPTION_NOT_FOUND",
@@ -18,31 +28,26 @@ def submit_exam_service(db, data):
         if option.is_correct:
             score += 1
 
-    #luu ket qua bai thi
+    # Luu ket qua bai thi
     exam_result = Result(
-        userID = data.userID,
-        examID = data.examID,
+        user_id = current_user.user_id,
+        exam_id = exam.exam_id,
         score = score,
-        timeSpent = data.timeSpent
+        time_spent = data.time_spent
     )
 
     db.add(exam_result)
     db.commit()
     db.refresh(exam_result)
 
-    #luu dap an user da chon
+    # Luu dap an user da chon
     for ans in data.answers:
-        user_answers = UserAnswers(
-            resultID = exam_result.resultID,
-            questionID = ans.questionID,
-            selectedOptionID = ans.selectedOptionID
+        user_answers = UserAnswer(
+            result_id = exam_result.result_id,
+            question_id = ans.question_id,
+            selected_option_id = ans.selected_option_id
         )
         db.add(user_answers)
     db.commit()
 
-    return SubmitExam(
-        userID=exam_result.userID,
-        examID=exam_result.examID,
-        answers=data.answers,
-        timeSpent=exam_result.timeSpent
-    )
+    return {"message": "submit exam successfully"}

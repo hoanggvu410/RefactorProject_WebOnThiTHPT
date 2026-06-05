@@ -10,6 +10,7 @@ from app.routes.document_routes import router as document_router
 from app.routes.question_routes import router as question_router
 from app.routes.exam_routes import router as exam_router
 from app.routes.results_routes import router as result_router
+from app.routes.me_routes import router as me_router
 from app.models.user_model import User
 from app.models.result_model import Result
 from app.models.exam_model import Exam
@@ -19,8 +20,9 @@ from app.models.exam_question_model import ExamQuestion
 from app.models.subject_model import Subject
 from app.models.document_model import Document
 from app.models.news_model import News
-from app.models.user_answers import UserAnswers
+from app.models.user_answer_model import UserAnswer
 from app.models.refresh_token_model import RefreshToken
+
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
@@ -53,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(question_router)
     app.include_router(exam_router)
     app.include_router(result_router)
+    app.include_router(me_router)
 
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 

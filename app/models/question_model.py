@@ -1,17 +1,21 @@
 from sqlalchemy import Integer, Column, Text, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.base.db import Base
+from app.models.models import AdminSchemaMixin
 
 
-class Question(Base):
+class Question(Base, AdminSchemaMixin):
     __tablename__ = 'questions'
-    questionID = Column(Integer, primary_key=True, autoincrement=True)
+    question_id = Column(Integer, primary_key=True, autoincrement=True)
     grade = Column(Integer, default=10)
-    subjectID = Column(Integer, ForeignKey("subjects.subjectID"))
+    subject_id = Column(Integer, ForeignKey("subjects.subject_id"))
     content = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=True)
+    tags = Column(JSONB, default=[], nullable=False)
 
     subject = relationship("Subject", back_populates="questions")
-    questionOptions = relationship("QuestionOption", back_populates="question")
+    question_options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan")
     exams = relationship("Exam", secondary="exam_questions", back_populates="questions")
-    userAnswers = relationship("UserAnswers", back_populates="question")
+    user_answers = relationship("UserAnswer", back_populates="question")
