@@ -2,7 +2,11 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from jose import jwt, ExpiredSignatureError, JWTError
+from redis.asyncio import Redis
+from sqlalchemy.orm import Session
 
+from app.dependencies.db_dependency import get_db
+from app.models.user_model import User
 from app.services.auth_service import SECRET_KEY, ALGORITHM
 
 security = HTTPBearer()
@@ -31,16 +35,25 @@ def decode_access_token(token: str) -> dict:
 #
 def get_current_user(
         credentials: HTTPAuthorizationCredentials = Depends(security),
-)-> dict:
+        r: Redis.Redis = Depends(get_redis)
+)-> User:
     token = credentials.credentials
     payload = decode_access_token(token)
-    return payload
+    
+    user_id = payload.get("user_id")
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(404, {
+            'code': "USER_NOT_FOUND",
+            'message': "User not found"
+        })
+    return user
 
-def require_roles(roles: list[str]):
+def require_roles(*roles: str):
     def role_checker(
-        current_user: dict = Depends(get_current_user)
+        current_user: User = Depends(get_current_user)
     ):
-        if current_user.get("role") not in roles:
+        if current_user.role not in roles:
             raise HTTPException(403, {
                 "code": "FORBIDDEN",
                 "message": "Permission denied"
@@ -48,5 +61,4 @@ def require_roles(roles: list[str]):
             )
         return current_user
     return role_checker
-
 

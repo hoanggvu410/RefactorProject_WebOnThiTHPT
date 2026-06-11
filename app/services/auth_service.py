@@ -1,4 +1,5 @@
 import hashlib
+from uuid import uuid4
 from jose import jwt
 from datetime import timedelta, datetime
 from fastapi import HTTPException
@@ -18,9 +19,12 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 #Tao token
 def create_access_token(data: dict):
     to_encode = data.copy()
+    to_encode.update({"jti": str(uuid4())})
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    to_encode.update({"iat": datetime.utcnow()})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
@@ -129,18 +133,14 @@ def logout(db, data):
     db.commit()
     return {"message": "Logout successfully"}
 
+#change password
 def change_password(db, current_user, data):
-    user = db.query(User).filter(User.user_id == current_user.get("user_id")).first()
-    if not user:
-        raise HTTPException(404, {
-            'code': "USER_NOT_FOUND",
-            'message': "User not found"
-        })
+    user = db.query(User).filter(User.user_id == current_user.user_id).first()
     if not verify_password(data.current_password, user.password):
         raise HTTPException(401, {
-            'code': "AUTH_WRONG_PASSWORD",
-            'message': "Current password is wrong"
+            'code': "INCORRECT_CURRENT_PASSWORD",
+            'message': "Incorrect current password"
         })
     user.password = hash_password(data.new_password)
     db.commit()
-    return {"message": "Đổi mật khẩu thành công"}
+    return {"message": "Password changed successfully"}

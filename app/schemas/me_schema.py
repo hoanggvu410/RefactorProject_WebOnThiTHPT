@@ -9,12 +9,13 @@ class UpdateMeRequest(BaseModel):
 
 
 class UserMeResponse(BaseModel):
-    user_uuid: UUID
+    uuid: UUID
     name: str
     username: str
     email: str
     role: str
     grade: int
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

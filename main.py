@@ -28,9 +28,15 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from config import get_settings
+
 Base.metadata.create_all(bind=engine)
-BASE_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = BASE_DIR / "frontend"
+BASE_DIR: Path = Path(__file__).resolve().parent
+FRONTEND_DIR: Path = BASE_DIR / "frontend"
+FRONTEND_DIST_DIR: Path = FRONTEND_DIR / "dist"
+STATIC_DIR: Path = BASE_DIR / "app" / "static"
+
+settings = get_settings()
 
 def create_app() -> FastAPI:
     app = FastAPI()
@@ -57,13 +63,21 @@ def create_app() -> FastAPI:
     app.include_router(result_router)
     app.include_router(me_router)
 
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+    if STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+    if FRONTEND_DIST_DIR.exists():
+        app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")
+    else:
+        app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
     @app.get("/")
     def serve_frontend():
+        if FRONTEND_DIST_DIR.exists():
+            return FileResponse(FRONTEND_DIST_DIR / "index.html")
         return FileResponse(FRONTEND_DIR / "index.html")
 
     return app
 
 app = create_app()
-

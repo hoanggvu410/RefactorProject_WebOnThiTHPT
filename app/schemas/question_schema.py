@@ -1,18 +1,17 @@
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.question_option_schema import QuestionOptionResponse
 
 
 class QuestionResponse(BaseModel):
-    question_uuid: UUID
+    question_uuid: UUID = Field(validation_alias="uuid")
     content: str
-    questionOptions: list[QuestionOptionResponse] #4 cau trl
+    questionOptions: list[QuestionOptionResponse] = Field(validation_alias="question_options")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class ReviewQuestionResponse(QuestionResponse):
     is_correct: bool

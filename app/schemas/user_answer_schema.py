@@ -1,6 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserAnswers(BaseModel):
-    questionID: int
-    selectedOptionID: int
+    question_id: int = Field(alias="questionID")
+    selected_option_id: int = Field(alias="selectedOptionID")
+
+    model_config = ConfigDict(populate_by_name=True)

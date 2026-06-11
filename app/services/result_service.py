@@ -1,11 +1,24 @@
 from fastapi import HTTPException
-from uuid import UUID
 from app.models.exam_model import Exam
 from app.models.question_option_model import QuestionOption
 from app.models.result_model import Result
 from app.models.user_answer_model import UserAnswer
 from app.schemas.exam_schema import SubmitExam
+from app.schemas.question_schema import ReviewQuestionResponse
+from app.schemas.result_schema import ReviewResultResponse
 
+
+def get_my_result(exam_uuid, current_user, db):
+    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    if not exam:
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
+    result = db.query(Result).filter(
+        Result.exam_id == exam.exam_id,
+        Result.user_id == current_user.user_id
+    ).first()
+    if not result:
+        raise HTTPException(404, {"code": "RESULT_NOT_FOUND", "message": "Result not found"})
+    return result
 
 def submit_exam(db, data, current_user):
     # Get exam by uuid
@@ -51,3 +64,36 @@ def submit_exam(db, data, current_user):
     db.commit()
 
     return {"message": "submit exam successfully"}
+
+def review_result(result_uuid, db, current_user):
+    result = db.query(Result).filter(Result.uuid== result_uuid).first()
+    if not result:
+        raise HTTPException(404, {"code": "RESULT_NOT_FOUND", "message": "Result not found"})
+
+    if result.user_id != current_user.user_id:
+        raise HTTPException(403, {"code": "PERMISSION_DENIED", "message": "Permission denied"})
+
+    review_questions = []
+    for answer in result.user_answers:
+        question = answer.question
+        correct_answer = db.query(QuestionOption).filter(
+            QuestionOption.question_id == question.question_id,
+            QuestionOption.is_correct == True
+        ).first()
+        if not correct_answer:
+            raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
+        review_questions.append(ReviewQuestionResponse(
+            questionID=question.question_id,
+            content=question.content,
+            questionOptions=question.question_options,
+            is_correct=(answer.selected_option_id == correct_answer.question_option_id),
+            selectedOptionID=answer.selected_option_id
+        ))
+    
+    return ReviewResultResponse(
+        exam_uuid = result.exam.uuid,
+        title = result.exam.title,
+        score=result.score,
+        time_spent=result.time_spent,
+        questions=review_questions
+    )

@@ -12,7 +12,7 @@ from app.services import exam_service
 router = APIRouter(prefix="/exam", tags=["Exam"], dependencies=[Depends(get_current_user)])
 
 @router.get("/")
-def get_exams(params: ExamQueryParams, db: Session = Depends(get_db)):
+def get_exams(params: ExamQueryParams = Depends(), db: Session = Depends(get_db)):
     return exam_service.get_exams(params, db)
 
 @router.get("/{exam_uuid}", response_model=ExamResponse)

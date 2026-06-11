@@ -14,7 +14,7 @@ class ExamResponse(BaseModel):
     questions: list[QuestionResponse]
 
     class Config:
-        from_atributes = True
+        from_attributes = True
 
 class SubmitExam(BaseModel):
     exam_uuid: UUID
@@ -22,13 +22,13 @@ class SubmitExam(BaseModel):
     time_spent: int
 
     class Config:
-        from_atributes = True
+        from_attributes = True
 
 class ExamQueryParams(BaseModel):
     page: int = Query(1, ge=1)
     limit: int = Query(10, ge=1, le=100)
     subject_id: int | None = Query(None)
-    grade: int = Query(10, ge=10, le=12)
-    keyword: str | None = Query(None)
+    grade: int | None = Query(None, ge=10, le=12)
+    keyword: str | None = Query(None)  
     sort_by: str = "uuid"
     sort_order: str = "asc"

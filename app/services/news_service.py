@@ -4,11 +4,6 @@ from app.models.news_model import News
 def get_news(params, db):
     query = db.query(News)
 
-    # filter
-    if params.subject_id is not None:
-        query = query.filter(News.subject_id == params.subject_id)
-    if params.grade is not None:
-        query = query.filter(News.grade == params.grade)
     # search
     if params.keyword is not None:
         query = query.filter(
@@ -20,8 +15,8 @@ def get_news(params, db):
     # sort
     sort_fields = {
         "uuid": News.uuid,
-        "subject_id": News.subject_id,
-        "grade": News.grade,
+        "title": News.title,
+        "date": News.date,
         "published_at": News.published_at
     }
     sort_column = sort_fields.get(params.sort_by, News.uuid)
@@ -41,5 +36,6 @@ def get_news(params, db):
     return {
         "total": total,
         "items": items,
-        "page": params.page
+        "page": params.page,
+        "limit": params.limit
     }

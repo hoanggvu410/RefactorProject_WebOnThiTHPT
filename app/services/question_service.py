@@ -18,7 +18,7 @@ def get_questions(params: QuestionQueryParams, db):
         query = query.filter(
             or_(
                 Question.content.ilike(f"%{params.keyword}%"),
-                Question.question_options.ilike(f"%{params.keyword}%")
+                Question.question_options.content.ilike(f"%{params.keyword}%")
             )
         )
     # count

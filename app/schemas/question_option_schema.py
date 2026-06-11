@@ -1,9 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class QuestionOptionResponse(BaseModel):
-    questionoptionID: int
+    questionoptionID: int = Field(validation_alias="question_option_id")
     content: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

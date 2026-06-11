@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Column, ForeignKey, func, DateTime
+from sqlalchemy import Integer, Column, ForeignKey, func, DateTime, Float
 from sqlalchemy.orm import relationship
 
 from app.base.db import Base
@@ -8,7 +8,7 @@ from app.models.models import LogSchemaMixin
 class Result(Base, LogSchemaMixin):
     __tablename__ = "results"
     result_id = Column(Integer, primary_key=True, autoincrement=True)
-    score = Column(Integer, default=0)
+    score = Column(Float, default=0.0)
     user_id = Column(Integer, ForeignKey("users.user_id"))
     exam_id = Column(Integer, ForeignKey("exams.exam_id"))
     time_spent = Column(Integer, default=0)

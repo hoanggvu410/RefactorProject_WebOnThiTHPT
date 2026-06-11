@@ -3,15 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.models.news_model import News
-from app.schemas.news_schema import CreateNews
+from app.schemas.news_schema import CreateNews, NewsQueryParams
 from app.dependencies.auth_dependency import get_current_user
 from app.dependencies.db_dependency import get_db
+from app.services import news_service
 
 router = APIRouter(prefix="/news", tags=["News"], dependencies=[Depends(get_current_user)])
 
 @router.get("/")
-def get_news(db: Session = Depends(get_db)):
-    return db.query(News).all()
+def get_news(params: NewsQueryParams = Depends(), db: Session = Depends(get_db)):
+    return news_service.get_news(params, db)
 
 @router.get("/{news_uuid}")
 def get_single_news(news_uuid: UUID, db: Session = Depends(get_db)):

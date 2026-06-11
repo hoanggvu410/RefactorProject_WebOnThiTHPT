@@ -1,6 +1,11 @@
-from xml.dom.minidom import Document
+import os
+import uuid
+
+from fastapi import HTTPException, UploadFile
+from app.models.document_model import Document
 
 from app.schemas.document_schema import DocumentQueryParams
+from config import get_settings
 
 
 def get_documents(params: DocumentQueryParams, db):
@@ -22,6 +27,7 @@ def get_documents(params: DocumentQueryParams, db):
     # sort
     sort_fields = {
         "uuid": Document.uuid,
+        "title": Document.title,
         "subject_id": Document.subject_id,
         "grade": Document.grade,
         "created_at": Document.created_at
@@ -43,5 +49,54 @@ def get_documents(params: DocumentQueryParams, db):
     return {
         "total": total,
         "items": items,
-        "page": params.page
+        "page": params.page,
+        "limit": params.limit
     }
+
+def upload_document(
+    file: UploadFile,
+    db,
+    title: str,
+    grade: int,
+    subject_id: int,
+    current_user
+):
+    #validate file
+    file_extension = file.filename.split(".")[-1].lower()
+    settings = get_settings()
+    if file_extension not in settings.DOCUMENT_ALLOWED_EXTENSIONS:
+        raise HTTPException(400, {"code": "INVALID_FILE_TYPE", "message": "Invalid file type"})
+    if file.content_type not in settings.DOCUMENT_ALLOWED_MIME_TYPES:
+        raise HTTPException(400, {"code": "INVALID_FILE_TYPE", "message": "Invalid file type"})
+    if file.size is not None and file.size > settings.DOCUMENT_MAX_SIZE:
+        raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File size exceeds the maximum limit"})
+    
+    #random ten file va luu vao storage
+    new_filename = f"{uuid.uuid4().hex}.{file_extension}"
+    target_dir = os.path.join(settings.UPLOAD_DIR, "documents")
+    os.makedirs(target_dir, exist_ok=True)
+    file_path = os.path.join(target_dir, new_filename)
+
+    #luu vao storage
+    try:
+        contents = file.file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(500, {"code": "FILE_SAVE_ERROR", "message": "Failed to save file"})
+
+    document_url = f"/uploads/documents/{new_filename}"
+
+    new_document = Document(
+        title=title,
+        link=document_url,
+        grade=grade,
+        subject_id=subject_id,
+        created_by=current_user.uuid
+    )
+    db.add(new_document)
+    db.commit()
+    db.refresh(new_document)
+    return new_document

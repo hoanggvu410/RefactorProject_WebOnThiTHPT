@@ -25,8 +25,11 @@ def get_exams(params: ExamQueryParams, db):
     #sort
     sort_fields = {
         "uuid": Exam.uuid,
+        "title": Exam.title,
         "subject_id": Exam.subject_id,
-        "grade": Exam.grade
+        "grade": Exam.grade,
+        "question_number": Exam.question_number,
+        "duration": Exam.duration,
     }
     sort_column = sort_fields.get(params.sort_by, Exam.uuid)
     if params.sort_order == "asc":
@@ -44,5 +47,6 @@ def get_exams(params: ExamQueryParams, db):
     return {
         "total": total,
         "items": items,
-        "page": params.page
+        "page": params.page,
+        "limit": params.limit
     }
