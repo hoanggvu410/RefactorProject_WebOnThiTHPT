@@ -1,6 +1,6 @@
 
 from pathlib import Path
-
+from fastapi.middleware.cors import CORSMiddleware
 from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
@@ -41,6 +41,17 @@ settings = get_settings()
 def create_app() -> FastAPI:
     app = FastAPI()
 
+    app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://your-frontend-url.vercel.app",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+    
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         detail = exc.detail
