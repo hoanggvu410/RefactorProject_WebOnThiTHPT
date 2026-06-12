@@ -5,7 +5,7 @@ from typing import ClassVar
 
 
 class Settings(BaseSettings):
-    DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres.dqaioadzhqwsxncwokfo:123456@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require"
+    DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres.dqaioadzhqwsxncwokfo:Hoangbi410@@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require"
 
     #database
     database_url: str = DEFAULT_DATABASE_URL
