@@ -4,8 +4,11 @@ from jose import jwt
 from datetime import timedelta, datetime
 from fastapi import HTTPException
 from passlib.context import CryptContext
+from app.dependencies.auth_dependency import decode_access_token
+from app.dependencies.auth_dependency import decode_access_token
 from app.models.user_model import User
 from app.models.refresh_token_model import RefreshToken
+from app.services.token_service import add_to_blacklist
 from config import get_settings
 
 #JWT
@@ -126,11 +129,31 @@ def refresh_token(db, data):
     return {"access_token": new_access_token, "token_type": "bearer"}
 
 #logout
-def logout(db, data):
+async def logout(data, credentials, redis_client, db):
+#lay payload tu token
+    payload = decode_access_token(credentials.credentials)
+    jti = payload.get("jti")
+
+#blacklist token
+    ttl = max(payload.get("exp") - int(datetime.utcnow().timestamp()), 1)
+    await add_to_blacklist(redis_client, jti, ttl)
+
+#revoke refresh token
     token_hash = hash_token(data.refresh_token)
     token_record = db.query(RefreshToken).filter(RefreshToken.hashed_token == token_hash).first()
+    if not token_record:
+        raise HTTPException(401, {
+            'code': "INVALID_REFRESH_TOKEN",
+            'message': "Invalid refresh token"
+        })
+    if token_record.is_revoked:
+        raise HTTPException(401, {
+        'code': "REFRESH_TOKEN_REVOKED",
+        'message': "Refresh token has been revoked"
+        })
     token_record.is_revoked = True
     db.commit()
+
     return {"message": "Logout successfully"}
 
 #change password
