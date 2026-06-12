@@ -56,15 +56,12 @@ htmlcov/
 # PyCharm
 *.iml
 
-# Uploaded files / media
-uploads/
-media/
-
 # Alembic migrations cache
 alembic/__pycache__/
 
 # Requirements generated files
 pip-wheel-metadata/
+
 
 # Test output
 test-results/
