@@ -5,7 +5,6 @@ from datetime import timedelta, datetime
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from app.dependencies.auth_dependency import decode_access_token
-from app.dependencies.auth_dependency import decode_access_token
 from app.models.user_model import User
 from app.models.refresh_token_model import RefreshToken
 from app.services.token_service import add_to_blacklist
