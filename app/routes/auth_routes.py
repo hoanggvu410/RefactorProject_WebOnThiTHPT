@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
-import redis
-from app.core import redis
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 from app.core.redis import get_redis
 from app.schemas.auth_schema import RegisterUser, LoginUser, ChangePassword
@@ -24,13 +23,13 @@ def refresh(data: RefreshTokenRequest, db: Session = Depends(get_db)):
     return auth_service.refresh_token(db, data)
 
 @router.post("/logout")
-def logout(
+async def logout(
     data: RefreshTokenRequest, 
     credentials = Depends(security),
-    redis_client: redis.Redis = Depends(get_redis),
+    redis_client: Redis = Depends(get_redis),
     db: Session = Depends(get_db)
 ):
-    return auth_service.logout(data, credentials, redis_client, db)
+    return await auth_service.logout(data, credentials, redis_client, db)
 
 @router.post("/change-password")
 def change_password(data: ChangePassword, db: Session = Depends(get_db), current_user = Depends(get_current_user)):

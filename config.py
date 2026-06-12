@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     #redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://default:gQAAAAAAAX5bAAIgcDI3ODI3MGRkNWExNjg0ZTRjYTRhMTU0OWI3MTQ4ZWY2ZQ@gorgeous-crow-97883.upstash.io:6379"
 
     debug: bool = False
     host: str = "127.0.0.1"
