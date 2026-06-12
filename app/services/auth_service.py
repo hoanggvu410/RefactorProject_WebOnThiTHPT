@@ -1,10 +1,9 @@
 import hashlib
 from uuid import uuid4
-from jose import jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from datetime import timedelta, datetime
 from fastapi import HTTPException
 from passlib.context import CryptContext
-from app.dependencies.auth_dependency import decode_access_token
 from app.models.user_model import User
 from app.models.refresh_token_model import RefreshToken
 from app.services.token_service import add_to_blacklist
@@ -33,6 +32,28 @@ def create_refresh_token(data: dict):
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+#Decode token/ verify token
+def decode_access_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(401, {
+                'code': "INVALID_TOKEN",
+                'message': "Invalid token"
+            })
+        return payload
+    except ExpiredSignatureError:
+        raise HTTPException(401, {
+            'code': "TOKEN_EXPIRED",
+            'message': "Token has expired"
+        })
+    except JWTError:
+        raise HTTPException(401, {
+            'code': "INVALID_TOKEN",
+            'message': "Invalid token"
+        })
 
 #hash password
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -2,42 +2,18 @@ import json
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from jose import jwt, ExpiredSignatureError, JWTError
 from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
-from app.core import redis
 from app.core.redis import get_redis
 from app.dependencies.db_dependency import get_db
 from app.models.user_model import User
-from app.services.auth_service import SECRET_KEY, ALGORITHM
+from app.services.auth_service import decode_access_token
 from app.services.token_service import is_blacklisted
 
 security = HTTPBearer()
-#Decode token/ verify token
-def decode_access_token(token: str) -> dict:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(401, {
-                'code': "INVALID_TOKEN",
-                'message': "Invalid token"
-            })
-        return payload
-    except ExpiredSignatureError:
-        raise HTTPException(401, {
-            'code': "TOKEN_EXPIRED",
-            'message': "Token has expired"
-        })
-    except JWTError:
-        raise HTTPException(401, {
-            'code': "INVALID_TOKEN",
-            'message': "Invalid token"
-        })
 
-#
+#get current user tu token
 async def get_current_user(
         credentials: HTTPAuthorizationCredentials = Depends(security),
         db: Session = Depends(get_db),
