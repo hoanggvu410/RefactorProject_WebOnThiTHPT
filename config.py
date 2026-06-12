@@ -5,7 +5,7 @@ from typing import ClassVar
 
 
 class Settings(BaseSettings):
-    DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres.dqaioadzhqwsxncwokfo:Hoangbi410%40@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require"
+    DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres:123456@localhost:5432/postgres"
 
     #database
     database_url: str = DEFAULT_DATABASE_URL
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     #redis
-    REDIS_URL: str = "redis://default:gQAAAAAAAX5bAAIgcDI3ODI3MGRkNWExNjg0ZTRjYTRhMTU0OWI3MTQ4ZWY2ZQ@gorgeous-crow-97883.upstash.io:6379"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     debug: bool = False
     host: str = "127.0.0.1"
