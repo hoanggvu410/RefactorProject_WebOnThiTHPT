@@ -1,3 +1,5 @@
+import os
+import redis.asyncio as aioredis
 from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -29,8 +31,9 @@ class Settings(BaseSettings):
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     #redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-
+    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    
     debug: bool = False
     host: str = "127.0.0.1"
     port: int = 8000
