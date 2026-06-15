@@ -8,9 +8,13 @@ from typing import ClassVar
 
 class Settings(BaseSettings):
     DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres:123456@localhost:5432/postgres"
+    DEFAULT_REDIS_URL: ClassVar[str] = "redis://localhost:6379"
 
-    #database
+    #database (Pydantic tự động map với DATABASE_URL trong file .env hoặc Render)
     database_url: str = DEFAULT_DATABASE_URL
+
+    #redis
+    redis_url: str = DEFAULT_REDIS_URL
 
     #JWT
     SECRET_KEY: str
@@ -30,10 +34,6 @@ class Settings(BaseSettings):
     AVATAR_MAX_SIZE: int = 2 * 1024 * 1024  # 2MB
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
-    #redis
-    REDIS_URL: str = 'rediss://default:gQAAAAAAAX5bAAIgcDI3ODI3MGRkNWExNjg0ZTRjYTRhMTU0OWI3MTQ4ZWY2ZQ@gorgeous-crow-97883.upstash.io:6379'    
-    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
-    
     debug: bool = False
     host: str = "127.0.0.1"
     port: int = 8000
@@ -60,7 +60,6 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8"
     )
-
 
 @lru_cache
 def get_settings():
