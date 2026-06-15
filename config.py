@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     #redis
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: str = 'rediss://default:gQAAAAAAAX5bAAIgcDI3ODI3MGRkNWExNjg0ZTRjYTRhMTU0OWI3MTQ4ZWY2ZQ@gorgeous-crow-97883.upstash.io:6379'    
     redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
     
     debug: bool = False
