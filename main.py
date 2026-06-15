@@ -1,6 +1,7 @@
 
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
+import app
 from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
@@ -82,6 +83,17 @@ def create_app() -> FastAPI:
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")
     else:
         app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+# CORS configuration - cho phep frontend goi api tu cac nguon/domain khac nhau
+    origins = ["*"]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,           # Chỉ cho phép các domain trong danh sách trên gọi tới
+        allow_credentials=True,
+        allow_methods=["*"],             # Cho phép dùng mọi phương thức (GET, POST, PUT, DELETE)
+        allow_headers=["*"],             # Cho phép truyền mọi loại Header (ví dụ: Token đăng nhập)
+    )
 
     @app.get("/")
     def serve_frontend():
