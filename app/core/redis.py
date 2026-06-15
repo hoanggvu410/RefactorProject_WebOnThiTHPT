@@ -5,7 +5,7 @@ from config import Settings
 Settings = Settings() 
 
 redis_pool =redis.ConnectionPool.from_url(
-    Settings.REDIS_URL,
+    Settings.redis_url,
     decode_responses=True,
     max_connections=20
 )

@@ -3,13 +3,11 @@ import redis.asyncio as aioredis
 from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import ClassVar
 
+DEFAULT_DATABASE_URL = "postgresql://postgres:123456@localhost:5432/postgres"
+DEFAULT_REDIS_URL = "redis://localhost:6379"
 
 class Settings(BaseSettings):
-    DEFAULT_DATABASE_URL: ClassVar[str] = "postgresql://postgres:123456@localhost:5432/postgres"
-    DEFAULT_REDIS_URL: ClassVar[str] = "redis://localhost:6379"
-
     #database (Pydantic tự động map với DATABASE_URL trong file .env hoặc Render)
     database_url: str = DEFAULT_DATABASE_URL
 
@@ -58,7 +56,8 @@ class Settings(BaseSettings):
 
     model_config = ConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        extra="ignore"
     )
 
 @lru_cache
