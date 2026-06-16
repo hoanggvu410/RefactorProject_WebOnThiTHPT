@@ -35,6 +35,10 @@ export default function Exams() {
   const [answers, setAnswers] = useState({});
   const [markedQuestions, setMarkedQuestions] = useState({});
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitResult, setSubmitResult] = useState(null);
+  const [resultModalOpen, setResultModalOpen] = useState(false);
 
   const questions = activeExam?.questions || [];
   const currentQuestion = questions[currentQuestionIndex];
@@ -100,6 +104,10 @@ export default function Exams() {
     setAnswers({});
     setMarkedQuestions({});
     setRemainingSeconds((Number(detailExam.duration) || 0) * 60);
+    setSubmitLoading(false);
+    setSubmitError("");
+    setSubmitResult(null);
+    setResultModalOpen(false);
   }
 
   function handleSelectAnswer(optionId) {
@@ -122,6 +130,64 @@ export default function Exams() {
     setMarkedQuestions({});
     setCurrentQuestionIndex(0);
     setRemainingSeconds(0);
+    setSubmitLoading(false);
+    setSubmitError("");
+    setSubmitResult(null);
+    setResultModalOpen(false);
+  }
+
+  async function handleSubmitExam() {
+    if (!activeExam || submitLoading || submitResult) return;
+
+    const unansweredCount = Math.max(0, questions.length - answeredCount);
+    if (unansweredCount > 0) {
+      const confirmed = window.confirm(`Bạn còn ${unansweredCount} câu chưa trả lời. Bạn vẫn muốn nộp bài?`);
+      if (!confirmed) return;
+    }
+
+    const submittedAnswers = [];
+    for (const [indexText, selectedOptionID] of Object.entries(answers)) {
+      if (!selectedOptionID) continue;
+
+      const question = questions[Number(indexText)];
+      const questionID = question?.questionID ?? question?.question_id;
+      if (!questionID) {
+        setSubmitError("Đề thi thiếu questionID, không thể nộp bài. Vui lòng tải lại đề.");
+        return;
+      }
+
+      submittedAnswers.push({
+        questionID,
+        selectedOptionID
+      });
+    }
+
+    const durationSeconds = (Number(activeExam.duration) || 0) * 60;
+    const elapsedSeconds = durationSeconds > 0
+      ? Math.max(0, durationSeconds - remainingSeconds)
+      : 0;
+    const timeSpent = Math.ceil(elapsedSeconds / 60);
+
+    setSubmitLoading(true);
+    setSubmitError("");
+
+    try {
+      const result = await apiFetch("/results/submit-exam", {
+        method: "POST",
+        body: JSON.stringify({
+          exam_uuid: activeExam.exam_uuid || activeExam.uuid,
+          answers: submittedAnswers,
+          time_spent: timeSpent
+        })
+      });
+      setSubmitResult(result);
+      setResultModalOpen(true);
+      setRemainingSeconds(0);
+    } catch (error) {
+      setSubmitError(error.message || "Không thể nộp bài.");
+    } finally {
+      setSubmitLoading(false);
+    }
   }
 
   if (activeExam) {
@@ -191,13 +257,19 @@ export default function Exams() {
                   >
                     Câu sau
                   </button>
-                  <button className="btn-primary" type="button">
-                    Nộp bài
+                  <button
+                    className="btn-primary"
+                    type="button"
+                    disabled={submitLoading || Boolean(submitResult)}
+                    onClick={handleSubmitExam}
+                  >
+                    {submitLoading ? "Đang nộp..." : submitResult ? "Đã nộp bài" : "Nộp bài"}
                   </button>
                   <button className="btn-secondary" type="button" onClick={handleExitPractice}>
                     Thoát
                   </button>
                 </div>
+                {submitError && <div className="form-error">{submitError}</div>}
               </>
             )}
           </section>
@@ -232,6 +304,42 @@ export default function Exams() {
             </div>
           </aside>
         </div>
+        {submitResult && resultModalOpen && (
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-content exam-modal">
+              <div className="modal-header">
+                <h2>Kết quả bài thi</h2>
+              </div>
+              <div className="modal-body">
+                <div className="exam-info-grid">
+                  <div>
+                    <span>Điểm</span>
+                    <strong>{submitResult.score ?? 0}</strong>
+                  </div>
+                  <div>
+                    <span>Số câu đúng</span>
+                    <strong>{submitResult.correct_count ?? 0}/{submitResult.total_question ?? questions.length}</strong>
+                  </div>
+                  <div>
+                    <span>Thời gian</span>
+                    <strong>{submitResult.time_spent ?? 0} phút</strong>
+                  </div>
+                </div>
+                {submitResult.result_uuid && (
+                  <p className="status-info">Result UUID: {submitResult.result_uuid}</p>
+                )}
+                <div className="modal-actions">
+                  <button className="btn-secondary" type="button" onClick={() => setResultModalOpen(false)}>
+                    Ở lại xem bài
+                  </button>
+                  <button className="btn-primary" type="button" onClick={handleExitPractice}>
+                    Thoát đề thi
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }

@@ -68,9 +68,10 @@ export function AuthProvider({ children }) {
     toast,
     login,
     logout,
+    refreshMe,
     apiFetch: (path, options) => apiFetch(path, options, token),
     showToast
-  }), [displayName, isLoggedIn, login, logout, me, role, showToast, toast, token, tokenPayload]);
+  }), [displayName, isLoggedIn, login, logout, me, refreshMe, role, showToast, toast, token, tokenPayload]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

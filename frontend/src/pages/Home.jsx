@@ -1,21 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable.jsx";
 import PracticeFilter from "../components/PracticeFilter.jsx";
-import ReviewBox from "../components/ReviewBox.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import SubjectGrid from "../components/SubjectGrid.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { demoDocuments, demoExams, demoNews, demoResults, demoReview } from "../data.js";
+import { demoExams, demoNews, demoResults } from "../data.js";
 
 export default function Home() {
   const { apiFetch, isLoggedIn, tokenPayload } = useAuth();
   const [news, setNews] = useState([]);
   const [exams, setExams] = useState([]);
-  const [documents, setDocuments] = useState([]);
   const [results, setResults] = useState([]);
-  const [review, setReview] = useState(null);
   const [status, setStatus] = useState("Trạng thái: Sẵn sàng");
-  const [resultId, setResultId] = useState("");
 
   useEffect(() => {
     async function loadHomeData() {
@@ -31,13 +27,6 @@ export default function Home() {
         setExams(Array.isArray(payload) ? payload : payload?.items || []);
       } catch {
         setExams(demoExams);
-      }
-
-      try {
-        const payload = await apiFetch("/documents/");
-        setDocuments(Array.isArray(payload) ? payload : []);
-      } catch {
-        setDocuments(demoDocuments);
       }
     }
 
@@ -66,19 +55,6 @@ export default function Home() {
     }
   }
 
-  async function loadReview() {
-    if (!resultId.trim()) {
-      window.alert("Vui lòng nhập Result UUID");
-      return;
-    }
-    try {
-      const payload = await apiFetch(`/results/review/${resultId.trim()}`);
-      setReview(payload);
-    } catch {
-      setReview(demoReview);
-    }
-  }
-
   return (
     <>
       <SectionTitle>📰 Tin tức nổi bật</SectionTitle>
@@ -96,7 +72,7 @@ export default function Home() {
 
       <SectionTitle>📚 Các môn học</SectionTitle>
       <PracticeFilter />
-      <SubjectGrid />
+      <SubjectGrid expandable limit={8} />
 
       {isLoggedIn && (
         <section className="logged-in-only">
@@ -124,15 +100,6 @@ export default function Home() {
               emptyText="Hãy bấm Xem kết quả để tải dữ liệu."
             />
           </div>
-
-          <SectionTitle>🔍 Chi tiết bài thi</SectionTitle>
-          <div className="search-section">
-            <div className="search-box">
-              <input value={resultId} onChange={(event) => setResultId(event.target.value)} placeholder="Nhập Result UUID để xem review..." />
-              <button className="btn-secondary" type="button" onClick={loadReview}>Review bài thi</button>
-            </div>
-          </div>
-          <div className="content-box"><ReviewBox review={review} /></div>
         </section>
       )}
 
@@ -146,19 +113,6 @@ export default function Home() {
           ]}
           rows={exams}
           emptyText="Chưa có đề thi."
-        />
-      </div>
-
-      <SectionTitle>📖 Tài liệu</SectionTitle>
-      <div className="content-box">
-        <DataTable
-          columns={[
-            { label: "ID", key: "document_id" },
-            { label: "Title", key: "title" },
-            { label: "Grade", key: "grade" }
-          ]}
-          rows={documents}
-          emptyText="Chưa có tài liệu."
         />
       </div>
     </>

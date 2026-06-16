@@ -1,8 +1,8 @@
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import BaseModel
-from app.schemas.question_schema import QuestionResponse
+from pydantic import BaseModel, Field
+from app.schemas.question_schema import CreateQuestionForExam, QuestionResponse
 from app.schemas.user_answer_schema import UserAnswers
 
 
@@ -32,3 +32,10 @@ class ExamQueryParams(BaseModel):
     keyword: str | None = Query(None)  
     sort_by: str = "uuid"
     sort_order: str = "asc"
+
+class CreateExam(BaseModel):
+    title: str
+    subject_id: int
+    grade: int = Field(...,ge=10, le=12)
+    duration: int
+    questions: list[CreateQuestionForExam] = Field(...,min_length=1) #moi de co it nhat 1 cau hoi   

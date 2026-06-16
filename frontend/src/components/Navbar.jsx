@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { resolveApiUrl } from "../services/api.js";
 
 const DEFAULT_AVATAR_URL = "/static/default-avatar.png";
 
@@ -12,15 +14,37 @@ const links = [
 
 export default function Navbar({ route, onLoginClick }) {
   const { displayName, isAdmin, isLoggedIn, logout, me, role } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const avatarUrl = me?.avatar_url || "";
-  const resolvedAvatarUrl = avatarUrl || DEFAULT_AVATAR_URL;
+  const resolvedAvatarUrl = resolveApiUrl(avatarUrl || DEFAULT_AVATAR_URL);
+
+  useEffect(() => {
+    function handleDocumentClick(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, []);
+
+  function handleMenuLink() {
+    setMenuOpen(false);
+  }
+
+  function handleLogout() {
+    setMenuOpen(false);
+    logout();
+  }
 
   return (
     <header className="header">
       <div className="header-container">
         <a href="#/" className="logo">
           <span className="logo-icon">📚</span>
-          <span className="logo-text">OnThiTHPT</span>
+          <span className="logo-text">Sĩ Tử Chiến</span>
         </a>
 
         <nav className="nav">
@@ -35,24 +59,45 @@ export default function Navbar({ route, onLoginClick }) {
         </nav>
 
         <div className="header-actions">
-          <div className="user-profile">
-            {isLoggedIn && (
-              <img
-                className="user-avatar"
-                src={resolvedAvatarUrl}
-                alt="Avatar"
-                onError={(event) => {
-                  if (event.currentTarget.src.endsWith(DEFAULT_AVATAR_URL)) return;
-                  event.currentTarget.src = DEFAULT_AVATAR_URL;
-                }}
-              />
-            )}
-            <span className="user-info">{isLoggedIn ? `${displayName} (${role})` : "Chưa đăng nhập"}</span>
-          </div>
           {isLoggedIn ? (
-            <button className="btn-secondary" type="button" onClick={logout}>Đăng xuất</button>
+            <div className="user-menu" ref={menuRef}>
+              <button
+                className="user-profile user-profile-button"
+                type="button"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <img
+                  className="user-avatar"
+                  src={resolvedAvatarUrl}
+                  alt="Avatar"
+                  onError={(event) => {
+                    const fallback = resolveApiUrl(DEFAULT_AVATAR_URL);
+                    if (event.currentTarget.src === fallback) return;
+                    event.currentTarget.src = fallback;
+                  }}
+                />
+                <span className="user-info">{displayName} ({role})</span>
+                <span className="user-menu-caret">▾</span>
+              </button>
+
+              {menuOpen && (
+                <div className="user-dropdown" role="menu">
+                  <a href="#/profile" role="menuitem" onClick={handleMenuLink}>Profile</a>
+                  <a href="#/dashboard" role="menuitem" onClick={handleMenuLink}>Dashboard</a>
+                  <a href="#/history" role="menuitem" onClick={handleMenuLink}>Lịch sử thi</a>
+                  <button type="button" role="menuitem" onClick={handleLogout}>Đăng xuất</button>
+                </div>
+              )}
+            </div>
           ) : (
-            <button className="btn-login" type="button" onClick={onLoginClick}>Đăng nhập</button>
+            <>
+              <div className="user-profile">
+                <span className="user-info">Chưa đăng nhập</span>
+              </div>
+              <button className="btn-login" type="button" onClick={onLoginClick}>Đăng nhập</button>
+            </>
           )}
         </div>
       </div>

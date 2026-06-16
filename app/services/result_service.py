@@ -30,7 +30,7 @@ def submit_exam(db, data, current_user):
         })
     
     # Logic tinh diem
-    score = 0
+    correct_count = 0
     for ans in data.answers:
         option = db.query(QuestionOption).filter(QuestionOption.question_option_id == ans.selected_option_id).first()
         if not option:
@@ -39,13 +39,13 @@ def submit_exam(db, data, current_user):
                 'message': "Option not found"
             })
         if option.is_correct:
-            score += 1
+            correct_count += 1
 
     # Luu ket qua bai thi
     exam_result = Result(
         user_id = current_user.user_id,
         exam_id = exam.exam_id,
-        score = score,
+        score = correct_count,
         time_spent = data.time_spent
     )
 
@@ -63,7 +63,14 @@ def submit_exam(db, data, current_user):
         db.add(user_answers)
     db.commit()
 
-    return {"message": "submit exam successfully"}
+    return {
+        "message": "submit exam successfully",
+        "result_uuid": exam_result.uuid,
+        "score": exam_result.score,
+        "correct_count": correct_count,
+        "total_question": exam.question_number or len(exam.questions),
+        "time_spent": exam_result.time_spent
+    }
 
 def review_result(result_uuid, db, current_user):
     result = db.query(Result).filter(Result.uuid== result_uuid).first()
@@ -84,6 +91,7 @@ def review_result(result_uuid, db, current_user):
             raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
         review_questions.append(ReviewQuestionResponse(
             questionID=question.question_id,
+            question_uuid=question.uuid,
             content=question.content,
             questionOptions=question.question_options,
             is_correct=(answer.selected_option_id == correct_answer.question_option_id),

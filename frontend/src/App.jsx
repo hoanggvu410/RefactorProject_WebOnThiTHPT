@@ -5,10 +5,13 @@ import Navbar from "./components/Navbar.jsx";
 import Toast from "./components/Toast.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import Admin from "./pages/Admin.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 import Document from "./pages/Document.jsx";
 import Exams from "./pages/Exams.jsx";
+import History from "./pages/History.jsx";
 import Home from "./pages/Home.jsx";
 import News from "./pages/News.jsx";
+import Profile from "./pages/Profile.jsx";
 import Subjects from "./pages/Subjects.jsx";
 
 const routeMap = {
@@ -17,23 +20,40 @@ const routeMap = {
   "#/subjects": Subjects,
   "#/exams": Exams,
   "#/documents": Document,
+  "#/profile": Profile,
+  "#/dashboard": Dashboard,
+  "#/history": History,
   "#/admin": Admin
 };
 
+const protectedRoutes = new Set(["#/profile", "#/dashboard", "#/history"]);
+
+function getRouteBase(nextRoute) {
+  return nextRoute.split("?")[0];
+}
+
 export default function App() {
-  const { isAdmin, toast } = useAuth();
+  const { isAdmin, isLoggedIn, showToast, toast } = useAuth();
   const [route, setRoute] = useState(() => window.location.hash || "#/");
   const [loginOpen, setLoginOpen] = useState(false);
 
   const syncRoute = useCallback(() => {
     const nextRoute = window.location.hash || "#/";
-    if (nextRoute === "#/admin" && !isAdmin) {
+    const routeBase = getRouteBase(nextRoute);
+
+    if (routeBase === "#/admin" && !isAdmin) {
       window.location.hash = "#/";
       setRoute("#/");
       return;
     }
-    setRoute(routeMap[nextRoute] ? nextRoute : "#/");
-  }, [isAdmin]);
+    if (protectedRoutes.has(routeBase) && !isLoggedIn) {
+      showToast("Vui lòng đăng nhập để xem khu vực cá nhân.");
+      window.location.hash = "#/";
+      setRoute("#/");
+      return;
+    }
+    setRoute(routeMap[routeBase] ? nextRoute : "#/");
+  }, [isAdmin, isLoggedIn, showToast]);
 
   useEffect(() => {
     syncRoute();
@@ -41,17 +61,18 @@ export default function App() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, [syncRoute]);
 
-  const Page = useMemo(() => routeMap[route] || Home, [route]);
+  const routeBase = useMemo(() => getRouteBase(route), [route]);
+  const Page = useMemo(() => routeMap[routeBase] || Home, [routeBase]);
 
   return (
-    <>
-      <Navbar route={route} onLoginClick={() => setLoginOpen(true)} />
+    <div className="app-shell">
+      <Navbar route={routeBase} onLoginClick={() => setLoginOpen(true)} />
       <main className="main">
         <Page />
       </main>
       <Footer />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <Toast message={toast} />
-    </>
+    </div>
   );
 }

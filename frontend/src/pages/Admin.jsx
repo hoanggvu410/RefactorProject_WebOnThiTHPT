@@ -165,6 +165,7 @@ export default function Admin() {
 
   const activeConfig = resourceConfig[activeTab];
   const activeState = resources[activeTab];
+  const totalPages = Math.max(1, Math.ceil(activeState.total / PAGE_SIZE));
 
   const updateResource = useCallback((key, patch) => {
     setResources((current) => ({
@@ -329,21 +330,23 @@ export default function Admin() {
 
       <div className="admin-toolbar">
         <button
-          className="btn-secondary"
+          className="btn-secondary pagination-btn"
           type="button"
           disabled={activeState.page <= 1 || activeState.loading}
           onClick={() => handlePageChange(activeState.page - 1)}
+          aria-label="Trang trước"
         >
-          Trang trước
+          &lt;
         </button>
-        <span className="status-info">Trang {activeState.page} • Tổng {activeState.total}</span>
+        <span className="status-info pagination-status">{activeState.page}/{totalPages}</span>
         <button
-          className="btn-secondary"
+          className="btn-secondary pagination-btn"
           type="button"
-          disabled={activeState.loading || activeState.page * PAGE_SIZE >= activeState.total}
+          disabled={activeState.loading || activeState.page >= totalPages}
           onClick={() => handlePageChange(activeState.page + 1)}
+          aria-label="Trang sau"
         >
-          Trang sau
+          &gt;
         </button>
       </div>
     </>

@@ -6,3 +6,7 @@ class QuestionOptionResponse(BaseModel):
     content: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+class CreateQuestionOption(BaseModel):
+    content: str
+    is_correct: bool
