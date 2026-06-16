@@ -1,3 +1,5 @@
+import json
+
 from fastapi import HTTPException
 from sqlalchemy import or_
 
@@ -97,3 +99,67 @@ def create_exam(exam_data, db, current_user):
     except Exception:
         db.rollback()
         raise
+
+def build_public_exam_payload(exam):
+        return{
+            "exam_uuid": str(exam.uuid),
+            "title": exam.title,
+            "questionNumber": exam.question_number,
+            "duration": exam.duration,
+            "questions": [
+                {
+                    "questionID": question.question_id,
+                    "question_uuid": str(question.uuid),
+                    "content": question.content,
+                    "questionOptions": [
+                        {
+                            "questionoptionID": option.question_option_id,
+                            "content": option.content
+                        }
+                        for option in question.question_options
+                    ]
+                }
+                for question in exam.questions
+            ]
+        }
+    
+def build_exam_answer_payload(exam):
+        answers = {}
+
+        for question in exam.questions:
+            correct_option = next(
+                (option for option in question.question_options if option.is_correct),
+            None
+            )
+            if correct_option:
+                answers[str(question.question_id)] = correct_option.question_option_id
+
+        return {
+            "exam_id": exam.exam_id,
+            "total_question": exam.question_number,
+            "answers": answers
+        }
+
+async def get_cached_exam(exam_uuid, db, redis_client):
+    cache_key = f"exam:public:{exam_uuid}"
+
+    #cache hit
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    
+    #cached miss
+    exam = (
+        db.query(Exam).filter(Exam.uuid == exam_uuid).first
+    )
+    if not exam:
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
+
+    payload = build_public_exam_payload(exam)
+    await redis_client.set(
+            f"exam:public:{exam_uuid}",
+            json.dumps(payload),
+            ex=3600
+        )
+
+    return payload

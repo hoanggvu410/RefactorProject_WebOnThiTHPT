@@ -91,7 +91,7 @@ export default function Home() {
           <div className="content-box">
             <DataTable
               columns={[
-                { label: "Result UUID", key: "result_uuid" },
+                { label: "STT", render: (_, index) => index + 1 },
                 { label: "Exam ID", key: "exam_id" },
                 { label: "Score", key: "score" },
                 { label: "Time", render: (row) => `${row.time_spent ?? row.timeSpent ?? "-"} phút` }

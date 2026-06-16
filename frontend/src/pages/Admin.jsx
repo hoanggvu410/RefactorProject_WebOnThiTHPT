@@ -22,7 +22,7 @@ const resourceConfig = {
       { value: "grade", label: "Grade" }
     ],
     columns: [
-      { label: "UUID", render: (row) => renderValue(row.uuid) },
+      { label: "STT", render: (_, index) => index + 1 },
       { label: "Name", key: "name" },
       { label: "Username", key: "username" },
       { label: "Email", key: "email" },
@@ -41,7 +41,7 @@ const resourceConfig = {
       { value: "uuid", label: "UUID" }
     ],
     columns: [
-      { label: "UUID", render: (row) => renderValue(row.uuid) },
+      { label: "STT", render: (_, index) => index + 1 },
       { label: "Title", key: "title" },
       { label: "Date", key: "date" }
     ]
@@ -58,7 +58,7 @@ const resourceConfig = {
       { value: "uuid", label: "UUID" }
     ],
     columns: [
-      { label: "UUID", render: (row) => renderValue(row.uuid) },
+      { label: "STT", render: (_, index) => index + 1 },
       { label: "Title", key: "title" },
       { label: "Grade", key: "grade" },
       { label: "Subject", key: "subject_id" },
@@ -78,7 +78,7 @@ const resourceConfig = {
       { value: "duration", label: "Duration" }
     ],
     columns: [
-      { label: "UUID", render: (row) => renderValue(row.uuid) },
+      { label: "STT", render: (_, index) => index + 1 },
       { label: "Title", key: "title" },
       { label: "Grade", key: "grade" },
       { label: "Subject", key: "subject_id" },
@@ -97,7 +97,7 @@ const resourceConfig = {
       { value: "subject_id", label: "Subject" }
     ],
     columns: [
-      { label: "UUID", render: (row) => renderValue(row.uuid) },
+      { label: "STT", render: (_, index) => index + 1 },
       { label: "Content", key: "content" },
       { label: "Grade", key: "grade" },
       { label: "Subject", key: "subject_id" }
@@ -107,6 +107,36 @@ const resourceConfig = {
 
 const tabs = Object.entries(resourceConfig).map(([key, config]) => ({ key, label: config.label }));
 const PAGE_SIZE = 10;
+
+function createQuestionOption() {
+  return { content: "", is_correct: false };
+}
+
+function createCreateFormState(tab) {
+  if (tab === "exams") {
+    return {
+      title: "",
+      subject_id: "",
+      grade: "10",
+      duration: "60",
+      questions: [
+        {
+          content: "",
+          explanation: "",
+          QuestionOptions: [createQuestionOption(), createQuestionOption()]
+        }
+      ]
+    };
+  }
+
+  return {
+    content: "",
+    subject_id: "",
+    grade: "10",
+    explanation: "",
+    QuestionOptions: [createQuestionOption(), createQuestionOption()]
+  };
+}
 
 function createResourceState(config) {
   return {
@@ -162,6 +192,10 @@ export default function Admin() {
   const { apiFetch, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
   const [resources, setResources] = useState(createInitialState);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(createCreateFormState("questions"));
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   const activeConfig = resourceConfig[activeTab];
   const activeState = resources[activeTab];
@@ -242,10 +276,121 @@ export default function Admin() {
     loadResource(activeTab, { page: 1 });
   }
 
+  function clearFilters() {
+    updateResource(activeTab, {
+      keyword: "",
+      role: "",
+      grade: "",
+      subject_id: "",
+      sort_by: activeConfig.defaultSort,
+      sort_order: "desc",
+      page: 1
+    });
+    loadResource(activeTab, {
+      keyword: "",
+      role: "",
+      grade: "",
+      subject_id: "",
+      sort_by: activeConfig.defaultSort,
+      sort_order: "desc",
+      page: 1
+    });
+  }
+
   function handleReset() {
     const resetState = createResourceState(activeConfig);
     updateResource(activeTab, resetState);
     loadResource(activeTab, resetState);
+  }
+
+  function handleOpenCreateModal() {
+    const nextForm = createCreateFormState(activeTab);
+    setCreateForm(nextForm);
+    setCreateError("");
+    setCreateModalOpen(true);
+  }
+
+  function handleCloseCreateModal() {
+    if (createSubmitting) return;
+    setCreateModalOpen(false);
+    setCreateError("");
+  }
+
+  function updateCreateForm(patch) {
+    setCreateForm((current) => ({ ...current, ...patch }));
+  }
+
+  function updateQuestionOption(questionIndex, optionIndex, patch) {
+    setCreateForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, index) => {
+        if (index !== questionIndex) return question;
+        return {
+          ...question,
+          QuestionOptions: question.QuestionOptions.map((option, optIndex) => (
+            optIndex === optionIndex ? { ...option, ...patch } : option
+          ))
+        };
+      })
+    }));
+  }
+
+  function updateRootQuestionOption(optionIndex, patch) {
+    setCreateForm((current) => ({
+      ...current,
+      QuestionOptions: current.QuestionOptions.map((option, index) => (
+        index === optionIndex ? { ...option, ...patch } : option
+      ))
+    }));
+  }
+
+  async function handleCreateSubmit(event) {
+    event.preventDefault();
+    setCreateSubmitting(true);
+    setCreateError("");
+
+    try {
+      if (activeTab === "exams") {
+        const payload = {
+          ...createForm,
+          subject_id: Number(createForm.subject_id),
+          grade: Number(createForm.grade),
+          duration: Number(createForm.duration),
+          questions: createForm.questions.map((question) => ({
+            ...question,
+            QuestionOptions: question.QuestionOptions.map((option) => ({
+              ...option,
+              is_correct: Boolean(option.is_correct)
+            }))
+          }))
+        };
+        await apiFetch("/exam/create_exam", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+      } else if (activeTab === "questions") {
+        const payload = {
+          ...createForm,
+          subject_id: Number(createForm.subject_id),
+          grade: Number(createForm.grade),
+          QuestionOptions: createForm.QuestionOptions.map((option) => ({
+            ...option,
+            is_correct: Boolean(option.is_correct)
+          }))
+        };
+        await apiFetch("/questions/create_question", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+      }
+
+      setCreateModalOpen(false);
+      await loadResource(activeTab, { page: 1 });
+    } catch (error) {
+      setCreateError(error.message || "Không thể tạo mới.");
+    } finally {
+      setCreateSubmitting(false);
+    }
   }
 
   function handlePageChange(nextPage) {
@@ -276,46 +421,95 @@ export default function Admin() {
         ))}
       </div>
 
-      <form className="admin-toolbar" onSubmit={handleSearch}>
-        <input
-          className="class-selector"
-          value={activeState.keyword}
-          onChange={(event) => handleFieldChange("keyword", event.target.value)}
-          placeholder="Tìm kiếm..."
-        />
+      {(activeTab === "exams" || activeTab === "questions") && (
+        <div className="admin-toolbar admin-toolbar-actions">
+          <button className="btn-primary" type="button" onClick={handleOpenCreateModal}>
+            Tạo mới {activeConfig.label.slice(0, -1).toLowerCase()}
+          </button>
+        </div>
+      )}
 
-        {activeTab === "users" && (
-          <select className="class-selector" value={activeState.role} onChange={(event) => handleFieldChange("role", event.target.value)}>
-            <option value="">Tất cả role</option>
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
-          </select>
-        )}
+      <form className="admin-filters" onSubmit={handleSearch}>
+        <div className="admin-filter-block">
+          <div className="admin-filter-label">Tìm kiếm nhanh</div>
+          <input
+            className="class-selector admin-search-input"
+            value={activeState.keyword}
+            onChange={(event) => handleFieldChange("keyword", event.target.value)}
+            placeholder={
+              activeTab === "users"
+                ? "Tìm theo tên, username, email..."
+                : activeTab === "news"
+                ? "Tìm theo tiêu đề tin..."
+                : activeTab === "documents"
+                ? "Tìm theo tiêu đề tài liệu..."
+                : activeTab === "exams"
+                ? "Tìm theo tiêu đề đề thi..."
+                : "Tìm theo nội dung câu hỏi..."
+            }
+          />
+        </div>
 
-        {["users", "documents", "exams", "questions"].includes(activeTab) && (
-          <select className="class-selector" value={activeState.grade} onChange={(event) => handleFieldChange("grade", event.target.value)}>
-            <option value="">Tất cả lớp</option>
-            <option value="10">Lớp 10</option>
-            <option value="11">Lớp 11</option>
-            <option value="12">Lớp 12</option>
-          </select>
-        )}
+        <div className="admin-filter-grid">
+          {activeTab === "users" && (
+            <label className="admin-field">
+              <span>Vai trò</span>
+              <select className="class-selector" value={activeState.role} onChange={(event) => handleFieldChange("role", event.target.value)}>
+                <option value="">Tất cả role</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+          )}
 
-        <select className="class-selector" value={activeState.sort_by} onChange={(event) => handleFieldChange("sort_by", event.target.value)}>
-          {activeConfig.sortOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
+          {["users", "documents", "exams", "questions"].includes(activeTab) && (
+            <label className="admin-field">
+              <span>Lớp</span>
+              <select className="class-selector" value={activeState.grade} onChange={(event) => handleFieldChange("grade", event.target.value)}>
+                <option value="">Tất cả lớp</option>
+                <option value="10">Lớp 10</option>
+                <option value="11">Lớp 11</option>
+                <option value="12">Lớp 12</option>
+              </select>
+            </label>
+          )}
 
-        <select className="class-selector" value={activeState.sort_order} onChange={(event) => handleFieldChange("sort_order", event.target.value)}>
-          <option value="asc">Tăng dần</option>
-          <option value="desc">Giảm dần</option>
-        </select>
+          {["documents", "exams", "questions"].includes(activeTab) && (
+            <label className="admin-field">
+              <span>Môn học</span>
+              <select className="class-selector" value={activeState.subject_id} onChange={(event) => handleFieldChange("subject_id", event.target.value)}>
+                <option value="">Tất cả môn</option>
+                <option value="1">Môn 1</option>
+                <option value="2">Môn 2</option>
+                <option value="3">Môn 3</option>
+              </select>
+            </label>
+          )}
 
-        <button className="btn-primary" type="submit">Tìm kiếm</button>
-        <button className="btn-secondary" type="button" onClick={handleReset}>Reset</button>
-        <button className="btn-secondary" type="button" onClick={() => loadResource(activeTab)}>Tải lại</button>
+          <label className="admin-field">
+            <span>Sắp xếp theo</span>
+            <select className="class-selector" value={activeState.sort_by} onChange={(event) => handleFieldChange("sort_by", event.target.value)}>
+              {activeConfig.sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="admin-field">
+            <span>Thứ tự</span>
+            <select className="class-selector" value={activeState.sort_order} onChange={(event) => handleFieldChange("sort_order", event.target.value)}>
+              <option value="asc">Tăng dần</option>
+              <option value="desc">Giảm dần</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="admin-filter-actions">
+          <button className="btn-primary" type="submit">Áp dụng</button>
+          <button className="btn-secondary" type="button" onClick={clearFilters}>Xóa lọc</button>
+          <button className="btn-secondary" type="button" onClick={() => loadResource(activeTab)}>Tải lại</button>
+        </div>
       </form>
 
       <div className="content-box">
@@ -349,6 +543,65 @@ export default function Admin() {
           &gt;
         </button>
       </div>
+
+      {createModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={handleCloseCreateModal}>
+          <div className="modal-card admin-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{activeTab === "exams" ? "Tạo đề thi mới" : "Tạo câu hỏi mới"}</h3>
+              <button className="btn-secondary" type="button" onClick={handleCloseCreateModal}>Đóng</button>
+            </div>
+
+            <form className="modal-body" onSubmit={handleCreateSubmit}>
+              {activeTab === "exams" ? (
+                <>
+                  <input placeholder="Tiêu đề" value={createForm.title} onChange={(e) => updateCreateForm({ title: e.target.value })} />
+                  <input placeholder="Subject ID" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })} />
+                  <input placeholder="Grade" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })} />
+                  <input placeholder="Duration (phút)" value={createForm.duration} onChange={(e) => updateCreateForm({ duration: e.target.value })} />
+                  {createForm.questions.map((question, questionIndex) => (
+                    <div key={questionIndex} className="create-section">
+                      <strong>Câu hỏi {questionIndex + 1}</strong>
+                      <input placeholder="Nội dung câu hỏi" value={question.content} onChange={(e) => setCreateForm((current) => ({
+                        ...current,
+                        questions: current.questions.map((item, index) => index === questionIndex ? { ...item, content: e.target.value } : item)
+                      }))} />
+                      <input placeholder="Giải thích" value={question.explanation} onChange={(e) => setCreateForm((current) => ({
+                        ...current,
+                        questions: current.questions.map((item, index) => index === questionIndex ? { ...item, explanation: e.target.value } : item)
+                      }))} />
+                      {question.QuestionOptions.map((option, optionIndex) => (
+                        <div key={optionIndex} className="create-option-row">
+                          <input placeholder={`Đáp án ${optionIndex + 1}`} value={option.content} onChange={(e) => updateQuestionOption(questionIndex, optionIndex, { content: e.target.value })} />
+                          <label className="create-checkbox"><input type="checkbox" checked={option.is_correct} onChange={(e) => updateQuestionOption(questionIndex, optionIndex, { is_correct: e.target.checked })} /> Đúng</label>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <input placeholder="Nội dung câu hỏi" value={createForm.content} onChange={(e) => updateCreateForm({ content: e.target.value })} />
+                  <input placeholder="Subject ID" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })} />
+                  <input placeholder="Grade" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })} />
+                  <input placeholder="Giải thích" value={createForm.explanation} onChange={(e) => updateCreateForm({ explanation: e.target.value })} />
+                  {createForm.QuestionOptions.map((option, optionIndex) => (
+                    <div key={optionIndex} className="create-option-row">
+                      <input placeholder={`Đáp án ${optionIndex + 1}`} value={option.content} onChange={(e) => updateRootQuestionOption(optionIndex, { content: e.target.value })} />
+                      <label className="create-checkbox"><input type="checkbox" checked={option.is_correct} onChange={(e) => updateRootQuestionOption(optionIndex, { is_correct: e.target.checked })} /> Đúng</label>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {createError && <div className="empty">{createError}</div>}
+              <button className="btn-primary" type="submit" disabled={createSubmitting}>
+                {createSubmitting ? "Đang tạo..." : "Lưu"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

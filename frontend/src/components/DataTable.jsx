@@ -19,7 +19,7 @@ export default function DataTable({ columns, rows, emptyText, onRowClick }) {
           >
             {columns.map((column) => (
               <td key={column.label}>
-                {column.render ? column.render(row) : row[column.key] ?? ""}
+                {column.render ? column.render(row, rowIndex) : row[column.key] ?? ""}
               </td>
             ))}
           </tr>

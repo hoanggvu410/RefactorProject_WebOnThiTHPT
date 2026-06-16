@@ -80,13 +80,13 @@ export default function History() {
         ) : (
           <DataTable
             columns={[
+              { label: "STT", render: (_, index) => index + 1 },
               { label: "Đề thi", key: "exam_title" },
               { label: "Môn học", key: "subject_name" },
               { label: "Điểm", key: "score" },
               { label: "Đúng/Tổng", render: (row) => `${row.correct_count}/${row.total_question}` },
               { label: "Thời gian", render: (row) => `${row.time_spent} phút` },
               { label: "Ngày nộp", render: (row) => formatDate(row.submitted_at) },
-              { label: "Result UUID", key: "result_uuid" }
             ]}
             rows={filteredItems}
             emptyText="Chưa có lịch sử thi."
