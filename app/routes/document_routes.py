@@ -22,7 +22,7 @@ def get_document(document_uuid: UUID, db: Session = Depends(get_db)):
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
     return document
 
-@router.put("/{document_uuid}", dependencies = Depends(require_roles("giáo viên", "admin")))
+@router.put("/{document_uuid}", dependencies = [Depends(require_roles("giáo viên", "admin"))])
 def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.uuid == document_uuid).first()
     if not document:
@@ -33,7 +33,7 @@ def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = 
     db.commit()
     return {"message": "Document updated successfully"}
 
-@router.delete("/{document_uuid}", dependencies = Depends(require_roles("giáo viên", "admin")))
+@router.delete("/{document_uuid}", dependencies = [Depends(require_roles("giáo viên", "admin"))])
 def delete_document(document_uuid: UUID, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.uuid == document_uuid).first()
     if not document:
@@ -42,7 +42,7 @@ def delete_document(document_uuid: UUID, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Document deleted successfully"}
 
-@router.post("/create_document", response_model=DocumentResponse, dependencies = Depends(require_roles("giáo viên", "admin")))
+@router.post("/create_document", response_model=DocumentResponse, dependencies = [Depends(require_roles("giáo viên", "admin"))])
 def create_document(
     title: str = Form(...),
     grade: int = Form(...),
