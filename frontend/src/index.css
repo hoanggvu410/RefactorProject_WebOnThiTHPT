@@ -226,7 +226,9 @@ select {
 
 .search-box input,
 .modal-body input,
+.modal-body select,
 .profile-form input,
+.profile-form select,
 .class-selector {
   padding: 12px;
   border: 1px solid var(--border);
@@ -236,7 +238,9 @@ select {
 
 .search-box input:focus,
 .modal-body input:focus,
+.modal-body select:focus,
 .profile-form input:focus,
+.profile-form select:focus,
 .class-selector:focus {
   outline: none;
   border-color: var(--primary);
@@ -374,7 +378,7 @@ select {
 
 .create-option-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, max-content);
   gap: 12px;
   align-items: center;
 }
@@ -382,8 +386,21 @@ select {
 .create-checkbox {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
+  min-width: 0;
   white-space: nowrap;
+}
+
+.modal-body .create-checkbox {
+  display: inline-flex;
+  margin-bottom: 0;
+}
+
+.modal-body .create-checkbox input {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .logged-in-only {
@@ -508,6 +525,12 @@ th {
   background: #e0e0e0;
 }
 
+.nav-register-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -617,8 +640,13 @@ button:disabled {
   margin-bottom: 6px;
 }
 
-.profile-form input {
+.profile-form input,
+.profile-form select {
   width: 100%;
+}
+
+.register-layout {
+  max-width: 560px;
 }
 
 .form-error {
@@ -1033,6 +1061,10 @@ button:disabled {
   }
 
   .exam-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-option-row {
     grid-template-columns: 1fr;
   }
 

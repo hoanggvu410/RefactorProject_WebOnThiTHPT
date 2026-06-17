@@ -112,6 +112,18 @@ function createQuestionOption() {
   return { content: "", is_correct: false };
 }
 
+function createQuestionOptions(count = 4) {
+  return Array.from({ length: count }, createQuestionOption);
+}
+
+function createExamQuestion() {
+  return {
+    content: "",
+    explanation: "",
+    QuestionOptions: createQuestionOptions(4)
+  };
+}
+
 function createCreateFormState(tab) {
   if (tab === "exams") {
     return {
@@ -119,13 +131,7 @@ function createCreateFormState(tab) {
       subject_id: "",
       grade: "10",
       duration: "60",
-      questions: [
-        {
-          content: "",
-          explanation: "",
-          QuestionOptions: [createQuestionOption(), createQuestionOption()]
-        }
-      ]
+      questions: [createExamQuestion()]
     };
   }
 
@@ -332,6 +338,13 @@ export default function Admin() {
           ))
         };
       })
+    }));
+  }
+
+  function addExamQuestion() {
+    setCreateForm((current) => ({
+      ...current,
+      questions: [...current.questions, createExamQuestion()]
     }));
   }
 
@@ -557,8 +570,12 @@ export default function Admin() {
                 <>
                   <input placeholder="Tiêu đề" value={createForm.title} onChange={(e) => updateCreateForm({ title: e.target.value })} />
                   <input placeholder="Subject ID" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })} />
-                  <input placeholder="Grade" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })} />
-                  <input placeholder="Duration (phút)" value={createForm.duration} onChange={(e) => updateCreateForm({ duration: e.target.value })} />
+                  <select className="class-selector" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })}>
+                    <option value="10">Lớp 10</option>
+                    <option value="11">Lớp 11</option>
+                    <option value="12">Lớp 12</option>
+                  </select>
+                  <input type="number" min="1" placeholder="Thời gian (phút)" value={createForm.duration} onChange={(e) => updateCreateForm({ duration: e.target.value })} />
                   {createForm.questions.map((question, questionIndex) => (
                     <div key={questionIndex} className="create-section">
                       <strong>Câu hỏi {questionIndex + 1}</strong>
@@ -578,6 +595,7 @@ export default function Admin() {
                       ))}
                     </div>
                   ))}
+                  <button className="btn-secondary" type="button" onClick={addExamQuestion}>Thêm câu hỏi</button>
                 </>
               ) : (
                 <>

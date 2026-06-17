@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import DataTable from "../components/DataTable.jsx";
-import PracticeFilter from "../components/PracticeFilter.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import SubjectGrid from "../components/SubjectGrid.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -11,7 +10,6 @@ export default function Home() {
   const [news, setNews] = useState([]);
   const [exams, setExams] = useState([]);
   const [results, setResults] = useState([]);
-  const [grade, setGrade] = useState("");
 
   useEffect(() => {
     async function loadHomeData() {
@@ -67,8 +65,7 @@ export default function Home() {
       </div>
 
       <SectionTitle>📚 Các môn học</SectionTitle>
-      <PracticeFilter grade={grade} onGradeChange={setGrade} />
-      <SubjectGrid expandable limit={8} grade={grade} />
+      <SubjectGrid expandable limit={8} />
 
       {isLoggedIn && (
         <section className="logged-in-only">

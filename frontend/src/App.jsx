@@ -12,6 +12,7 @@ import History from "./pages/History.jsx";
 import Home from "./pages/Home.jsx";
 import News from "./pages/News.jsx";
 import Profile from "./pages/Profile.jsx";
+import Register from "./pages/Register.jsx";
 import Subjects from "./pages/Subjects.jsx";
 
 const routeMap = {
@@ -20,6 +21,7 @@ const routeMap = {
   "#/subjects": Subjects,
   "#/exams": Exams,
   "#/documents": Document,
+  "#/register": Register,
   "#/profile": Profile,
   "#/dashboard": Dashboard,
   "#/history": History,
