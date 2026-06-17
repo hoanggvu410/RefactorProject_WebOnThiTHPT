@@ -19,7 +19,7 @@ def get_exams(params: ExamQueryParams = Depends(), db: Session = Depends(get_db)
 
 @router.get("/{exam_uuid}", response_model=ExamResponse)
 async def get_exam_by_uuid(exam_uuid: UUID, db: Session = Depends(get_db), redis_client: Redis = Depends(get_redis)):
-    return await exam_service.get_cached_exam()
+    return await exam_service.get_public_exam_cached()
 
 @router.post("/create_exam")
 def create_exam(exam_data: CreateExam, db: Session = Depends(get_db), current_user= Depends(require_roles("giáo viên", "admin"))):

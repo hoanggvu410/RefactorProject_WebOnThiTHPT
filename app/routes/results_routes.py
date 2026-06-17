@@ -1,7 +1,9 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
+from app.core.redis import get_redis
 from app.schemas.exam_schema import SubmitExam
 from app.schemas.result_schema import ReviewResultResponse
 from app.dependencies.auth_dependency import get_current_user
@@ -16,8 +18,13 @@ def get_results_by_user(user_id: int, db: Session = Depends(get_db), current_use
     return result_service.get_results_by_user(user_id, db, current_user)
 
 @router.post("/submit-exam")
-def submit_exam(data: SubmitExam, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return result_service.submit_exam(db, data, current_user)
+async def submit_exam(
+    data: SubmitExam,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    redis_client: Redis = Depends(get_redis)
+):
+    return await result_service.submit_exam(db, data, current_user, redis_client)
 
 @router.get("/review/{result_uuid}", response_model=ReviewResultResponse)
 def review_result(result_uuid: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

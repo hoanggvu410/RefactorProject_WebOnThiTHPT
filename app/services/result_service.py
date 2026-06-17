@@ -6,6 +6,7 @@ from app.models.user_answer_model import UserAnswer
 from app.schemas.exam_schema import SubmitExam
 from app.schemas.question_schema import ReviewQuestionResponse
 from app.schemas.result_schema import ReviewResultResponse
+from app.services import exam_service
 
 
 def get_my_result(exam_uuid, current_user, db):
@@ -20,31 +21,25 @@ def get_my_result(exam_uuid, current_user, db):
         raise HTTPException(404, {"code": "RESULT_NOT_FOUND", "message": "Result not found"})
     return result
 
-def submit_exam(db, data, current_user):
-    # Get exam by uuid
-    exam = db.query(Exam).filter(Exam.uuid == data.exam_uuid).first()
-    if not exam:
-        raise HTTPException(404, {
-            'code': "EXAM_NOT_FOUND",
-            'message': "Exam not found"
-        })
-    
-    # Logic tinh diem
+async def submit_exam(db, data, current_user, redis_client):
+    #lay dap an
+    answer_payload = await exam_service.get_exam_answers_cached(data.exam_uuid, db, redis_client)
+    exam_id = answer_payload["exam_id"]
+    total_question = answer_payload["total_question"]
+    answer_map = answer_payload["answers"]
+
     correct_count = 0
+
     for ans in data.answers:
-        option = db.query(QuestionOption).filter(QuestionOption.question_option_id == ans.selected_option_id).first()
-        if not option:
-            raise HTTPException(404, {
-                'code': "OPTION_NOT_FOUND",
-                'message': "Option not found"
-            })
-        if option.is_correct:
-            correct_count += 1
+            correct_option_id = answer_map.get(str(ans.question_id))
+
+            if correct_option_id == ans.selected_option_id:
+                correct_count += 1
 
     # Luu ket qua bai thi
     exam_result = Result(
         user_id = current_user.user_id,
-        exam_id = exam.exam_id,
+        exam_id = exam_id,
         score = correct_count,
         time_spent = data.time_spent
     )
@@ -68,7 +63,7 @@ def submit_exam(db, data, current_user):
         "result_uuid": exam_result.uuid,
         "score": exam_result.score,
         "correct_count": correct_count,
-        "total_question": exam.question_number or len(exam.questions),
+        "total_question": total_question,
         "time_spent": exam_result.time_spent
     }
 

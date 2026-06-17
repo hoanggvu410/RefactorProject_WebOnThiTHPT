@@ -140,7 +140,7 @@ def build_exam_answer_payload(exam):
             "answers": answers
         }
 
-async def get_cached_exam(exam_uuid, db, redis_client):
+async def get_public_exam_cached(exam_uuid, db, redis_client):
     cache_key = f"exam:public:{exam_uuid}"
 
     #cache hit
@@ -150,7 +150,7 @@ async def get_cached_exam(exam_uuid, db, redis_client):
     
     #cached miss
     exam = (
-        db.query(Exam).filter(Exam.uuid == exam_uuid).first
+        db.query(Exam).filter(Exam.uuid == exam_uuid).first()
     )
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
@@ -159,7 +159,32 @@ async def get_cached_exam(exam_uuid, db, redis_client):
     await redis_client.set(
             f"exam:public:{exam_uuid}",
             json.dumps(payload),
-            ex=3600
+            ex=3600 #1h
         )
 
+    return payload
+
+async def get_exam_answers_cached(exam_uuid, db, redis_client):
+    cache_key = f"exam:anwers:{exam_uuid}"
+    cached = await redis_client.get(cache_key)
+
+    #cache hit
+    if cached:
+        return json.loads(cached)
+    
+    #cache miss
+    exam = db.query(Exam.filter(Exam.uuid == exam_uuid)).first()
+
+    if not exam:
+        raise HTTPException(404, {
+            "code": "EXAM_NOT_FOUND",
+            "message": "Exam not found"
+        })
+    payload = build_exam_answer_payload(exam)
+
+    await redis_client.set(
+        cache_key,
+        json.dumps(payload),
+        ex = 3600 
+    )
     return payload
