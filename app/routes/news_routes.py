@@ -4,11 +4,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.models.news_model import News
 from app.schemas.news_schema import CreateNews, NewsQueryParams
-from app.dependencies.auth_dependency import get_current_user
+from app.dependencies.auth_dependency import get_current_user, require_roles
 from app.dependencies.db_dependency import get_db
 from app.services import news_service
 
-router = APIRouter(prefix="/news", tags=["News"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/news", tags=["News"])
 
 @router.get("/")
 def get_news(params: NewsQueryParams = Depends(), db: Session = Depends(get_db)):
@@ -22,7 +22,7 @@ def get_single_news(news_uuid: UUID, db: Session = Depends(get_db)):
     return news
 
 @router.post("/")
-def create_news(news: CreateNews, db: Session = Depends(get_db)):
+def create_news(news: CreateNews, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
     new_news = News(
         title=news.title,
         content=news.content,
@@ -39,7 +39,7 @@ def create_news(news: CreateNews, db: Session = Depends(get_db)):
     )
 
 @router.put("/{news_uuid}")
-def update_news(news_uuid: UUID, news: CreateNews, db: Session = Depends(get_db)):
+def update_news(news_uuid: UUID, news: CreateNews, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
     news = db.query(News).filter(News.uuid == news_uuid).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})
@@ -51,7 +51,7 @@ def update_news(news_uuid: UUID, news: CreateNews, db: Session = Depends(get_db)
     return {"message": "News updated successfully"}
 
 @router.delete("/{news_uuid}")
-def delete_news(news_uuid: UUID, db: Session = Depends(get_db)):
+def delete_news(news_uuid: UUID, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
     news = db.query(News).filter(News.uuid == news_uuid).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})

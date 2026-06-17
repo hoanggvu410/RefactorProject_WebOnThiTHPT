@@ -30,5 +30,5 @@ def get_quesions(params: QuestionQueryParams = Depends(),
     return question_service.get_questions(params, db)
 
 @router.post("/create_question")
-def create_question(question_data: CreateQuestion, db: Session = Depends(get_db), current_user=[Depends(require_roles("giáo viên", "admin"))]):
+def create_question(question_data: CreateQuestion, db: Session = Depends(get_db), current_user=Depends(require_roles("giáo viên", "admin"))):
     return question_service.create_question(question_data, db, current_user)

@@ -77,8 +77,8 @@ def create_question(question_data, db, current_user, commit : bool = True):
 
     try:
         db.add(question)
-        db.flush
-        for option in question_data.questionOptions:
+        db.flush()
+        for option in question_data.QuestionOptions:
             db.add(QuestionOption(
                 question_id=question.question_id,
                 content=option.content,

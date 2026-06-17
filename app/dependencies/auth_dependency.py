@@ -32,28 +32,13 @@ async def get_current_user(
             'message': "Token has been revoked"
         })
 
-#lay user tu redis 
-    cache_key = f"cache:user:{user_id}"
-    cached_user = await r.get(cache_key)
-
-    #cache hit
-    if cached_user:
-        return User(**json.loads(cached_user))
-    
-    #cache miss -> query database
+#query user tu db luon
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise HTTPException(404, {
             'code': "USER_NOT_FOUND",
             'message': "User not found"
         })
-    
-#luu user vao redis voi thoi gian song 15 phut
-    await r.set(cache_key, json.dumps({
-        "user_id": user.user_id,
-        "username": user.username,
-        "role": user.role
-    }), ex=900)
 
     return user
 

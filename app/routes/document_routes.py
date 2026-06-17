@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.document_model import Document
 from app.models.user_model import User
 from app.schemas.document_schema import CreateDocument, DocumentQueryParams, DocumentResponse
-from app.dependencies.auth_dependency import get_current_user
+from app.dependencies.auth_dependency import get_current_user, require_roles
 from app.dependencies.db_dependency import get_db
 from app.services import document_service
 
@@ -22,8 +22,8 @@ def get_document(document_uuid: UUID, db: Session = Depends(get_db)):
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
     return document
 
-@router.put("/{document_uuid}")
-def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.put("/{document_uuid}", dependencies = Depends(require_roles("giáo viên", "admin")))
+def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.uuid == document_uuid).first()
     if not document:
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
@@ -33,8 +33,8 @@ def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = 
     db.commit()
     return {"message": "Document updated successfully"}
 
-@router.delete("/{document_uuid}")
-def delete_document(document_uuid: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.delete("/{document_uuid}", dependencies = Depends(require_roles("giáo viên", "admin")))
+def delete_document(document_uuid: UUID, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.uuid == document_uuid).first()
     if not document:
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
@@ -42,7 +42,7 @@ def delete_document(document_uuid: UUID, db: Session = Depends(get_db), current_
     db.commit()
     return {"message": "Document deleted successfully"}
 
-@router.post("/create_document", response_model=DocumentResponse)
+@router.post("/create_document", response_model=DocumentResponse, dependencies = Depends(require_roles("giáo viên", "admin")))
 def create_document(
     title: str = Form(...),
     grade: int = Form(...),

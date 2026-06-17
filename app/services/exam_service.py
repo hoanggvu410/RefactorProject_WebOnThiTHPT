@@ -173,7 +173,7 @@ async def get_exam_answers_cached(exam_uuid, db, redis_client):
         return json.loads(cached)
     
     #cache miss
-    exam = db.query(Exam.filter(Exam.uuid == exam_uuid)).first()
+    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
 
     if not exam:
         raise HTTPException(404, {
