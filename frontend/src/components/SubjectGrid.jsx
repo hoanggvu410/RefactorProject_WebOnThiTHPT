@@ -33,7 +33,7 @@ function normalizeSubject(subject) {
   };
 }
 
-export default function SubjectGrid({ expandable = false, limit }) {
+export default function SubjectGrid({ expandable = false, limit, grade = "" }) {
   const { apiFetch } = useAuth();
   const [subjects, setSubjects] = useState(() => fallbackSubjects.map(normalizeSubject));
   const [expanded, setExpanded] = useState(false);
@@ -66,6 +66,7 @@ export default function SubjectGrid({ expandable = false, limit }) {
       subject_id: String(subject.id),
       subject_name: subject.name
     });
+    if (grade) params.set("grade", String(grade));
     window.location.hash = `#/documents?${params.toString()}`;
   }
 

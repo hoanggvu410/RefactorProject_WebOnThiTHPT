@@ -57,6 +57,8 @@ export function AuthProvider({ children }) {
     showToast("Đã đăng xuất.");
   }, [setToken, showToast]);
 
+  const authedApiFetch = useCallback((path, options) => apiFetch(path, options, token), [token]);
+
   const value = useMemo(() => ({
     token,
     tokenPayload,
@@ -69,9 +71,9 @@ export function AuthProvider({ children }) {
     login,
     logout,
     refreshMe,
-    apiFetch: (path, options) => apiFetch(path, options, token),
+    apiFetch: authedApiFetch,
     showToast
-  }), [displayName, isLoggedIn, login, logout, me, refreshMe, role, showToast, toast, token, tokenPayload]);
+  }), [authedApiFetch, displayName, isLoggedIn, login, logout, me, refreshMe, role, showToast, toast, token, tokenPayload]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

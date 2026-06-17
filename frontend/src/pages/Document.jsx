@@ -10,19 +10,23 @@ function getDocumentFilters() {
   const params = new URLSearchParams(queryString);
   return {
     subjectId: params.get("subject_id") || "",
-    subjectName: params.get("subject_name") || ""
+    subjectName: params.get("subject_name") || "",
+    grade: params.get("grade") || ""
   };
 }
 
 export default function Document() {
   const { apiFetch } = useAuth();
   const [documents, setDocuments] = useState([]);
-  const { subjectId, subjectName } = getDocumentFilters();
+  const { subjectId, subjectName, grade } = getDocumentFilters();
 
   useEffect(() => {
     async function loadDocuments() {
       try {
-        const query = subjectId ? `?subject_id=${encodeURIComponent(subjectId)}` : "";
+        const params = new URLSearchParams();
+        if (subjectId) params.set("subject_id", subjectId);
+        if (grade) params.set("grade", grade);
+        const query = params.toString() ? `?${params.toString()}` : "";
         const payload = await apiFetch(`/documents/${query}`);
         setDocuments(Array.isArray(payload) ? payload : payload?.items || []);
       } catch {
@@ -30,11 +34,11 @@ export default function Document() {
       }
     }
     loadDocuments();
-  }, [apiFetch, subjectId]);
+  }, [apiFetch, subjectId, grade]);
 
   return (
     <>
-      <SectionTitle>{subjectName ? `📖 Tài liệu - ${subjectName}` : "📖 Tài liệu"}</SectionTitle>
+      <SectionTitle>{subjectName ? `📖 Tài liệu - ${subjectName}${grade ? ` - Lớp ${grade}` : ""}` : "📖 Tài liệu"}</SectionTitle>
       <div className="content-box">
         <DataTable
           columns={[

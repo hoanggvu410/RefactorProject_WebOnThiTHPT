@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
 from datetime import datetime
 from typing import List, Optional
@@ -6,6 +6,7 @@ from typing import List, Optional
 class UpdateMeRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    grade: Optional[int] = Field(default=None, ge=10, le=12)
 
 
 class UserMeResponse(BaseModel):

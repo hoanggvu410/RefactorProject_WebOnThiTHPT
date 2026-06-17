@@ -11,7 +11,7 @@ from app.dependencies.db_dependency import get_db
 from app.schemas.exam_schema import ExamQueryParams
 from app.services import exam_service
 
-router = APIRouter(prefix="/exam", tags=["Exam"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/exam", tags=["Exam"])
 
 @router.get("/")
 def get_exams(params: ExamQueryParams = Depends(), db: Session = Depends(get_db)):

@@ -32,13 +32,19 @@ export async function apiFetch(path, options = {}, token = "") {
   }
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  } catch (error) {
+    throw new Error(`Không kết nối được API ${API_BASE_URL}${path}. Kiểm tra backend/CORS hoặc VITE_API_BASE_URL.`);
+  }
+
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
 
   if (!response.ok) {
     const message = typeof payload === "object"
-      ? payload?.error?.message || payload?.message || "Request failed"
+      ? payload?.error?.message || payload?.detail?.message || payload?.detail || payload?.message || "Request failed"
       : payload || "Request failed";
     throw new Error(message);
   }

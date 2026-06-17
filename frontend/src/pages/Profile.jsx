@@ -17,7 +17,7 @@ function InfoRow({ label, value }) {
 export default function Profile() {
   const { apiFetch, me, refreshMe, showToast } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "" });
+  const [form, setForm] = useState({ name: "", email: "", grade: "" });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +25,8 @@ export default function Profile() {
   useEffect(() => {
     setForm({
       name: me?.name || "",
-      email: me?.email || ""
+      email: me?.email || "",
+      grade: me?.grade ? String(me.grade) : ""
     });
   }, [me]);
 
@@ -39,7 +40,8 @@ export default function Profile() {
         method: "PATCH",
         body: JSON.stringify({
           name: form.name.trim(),
-          email: form.email.trim()
+          email: form.email.trim(),
+          grade: form.grade ? Number(form.grade) : undefined
         })
       });
       await refreshMe();
@@ -132,6 +134,19 @@ export default function Profile() {
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   />
                 </label>
+                <label>
+                  <span>Lớp</span>
+                  <select
+                    className="class-selector"
+                    value={form.grade}
+                    onChange={(event) => setForm((current) => ({ ...current, grade: event.target.value }))}
+                  >
+                    <option value="">Chọn lớp</option>
+                    <option value="10">Lớp 10</option>
+                    <option value="11">Lớp 11</option>
+                    <option value="12">Lớp 12</option>
+                  </select>
+                </label>
                 <div className="exam-actions">
                   <button className="btn-primary" type="submit" disabled={saving}>
                     {saving ? "Đang lưu..." : "Lưu thay đổi"}
@@ -143,7 +158,7 @@ export default function Profile() {
                     onClick={() => {
                       setEditing(false);
                       setError("");
-                      setForm({ name: me?.name || "", email: me?.email || "" });
+                      setForm({ name: me?.name || "", email: me?.email || "", grade: me?.grade ? String(me.grade) : "" });
                     }}
                   >
                     Hủy

@@ -352,7 +352,7 @@ export default function Exams() {
           columns={[
             { label: "ID", key: "exam_id" },
             { label: "Title", key: "title" },
-            { label: "Q", key: "question_number" },
+            { label: "Questions", key: "question_number" },
             { label: "Duration", render: (row) => `${row.duration || 0} phút` },
             {
               label: "Action",
