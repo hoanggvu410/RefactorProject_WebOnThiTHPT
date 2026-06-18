@@ -20,7 +20,7 @@ def login(data: LoginUser, db: Session = Depends(get_db)):
 
 @router.post("/refresh")
 def refresh(data: RefreshTokenRequest, db: Session = Depends(get_db)):
-    return auth_service.refresh_token(db, data)
+    return auth_service.refresh_access_token(db, data)
 
 @router.post("/logout")
 async def logout(

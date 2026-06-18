@@ -43,10 +43,17 @@ export async function apiFetch(path, options = {}, token = "") {
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
 
   if (!response.ok) {
+    const errorCode = typeof payload === "object"
+      ? payload?.error?.code || payload?.detail?.code || payload?.code || ""
+      : "";
     const message = typeof payload === "object"
       ? payload?.error?.message || payload?.detail?.message || payload?.detail || payload?.message || "Request failed"
       : payload || "Request failed";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = errorCode;
+    error.payload = payload;
+    throw error;
   }
 
   return payload;

@@ -63,6 +63,17 @@ export default function App() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, [syncRoute]);
 
+  useEffect(() => {
+    function handleAuthExpired() {
+      window.location.hash = "#/";
+      setRoute("#/");
+      setLoginOpen(true);
+    }
+
+    window.addEventListener("auth:expired", handleAuthExpired);
+    return () => window.removeEventListener("auth:expired", handleAuthExpired);
+  }, []);
+
   const routeBase = useMemo(() => getRouteBase(route), [route]);
   const Page = useMemo(() => routeMap[routeBase] || Home, [routeBase]);
 

@@ -132,20 +132,38 @@ def login(db, data):
     }
 
 #refresh
-def refresh_token(db, data):
+def refresh_access_token(db, data):
+    #tim refresh token trong db
     token_hash = hash_token(data.refresh_token)
     token_record = db.query(RefreshToken).filter(RefreshToken.hashed_token == token_hash).first()
+
+    #check token ton tai kh
     if not token_record:
         raise HTTPException(401, {
             'code': "INVALID_REFRESH_TOKEN",
             'message': "Invalid refresh token"
         })
+    
+    #Check token is_revoked
     if token_record.is_revoked:
         raise HTTPException(401, {
         'code': "REFRESH_TOKEN_REVOKED",
         'message': "Refresh token has been revoked"
         })
-    new_access_token = create_access_token(data={"sub": token_record.user.username})
+    
+    #check token expire
+    if token_record.expires_at < datetime.utcnow():
+        raise HTTPException(401, {
+            "code":"REFRESH_TOKEN_EXPIRED",
+            "message": "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại"
+        })
+
+    new_access_token = create_access_token(data={
+        "sub": token_record.user.username,
+        "role": token_record.user.role,
+        "user_id": token_record.user.user_id,
+        "user_uuid": str(token_record.user.uuid)
+    })
     return {"access_token": new_access_token, "token_type": "bearer"}
 
 #logout
