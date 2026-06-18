@@ -1,4 +1,6 @@
 import hashlib
+import random
+import secrets
 from uuid import uuid4
 from jose import ExpiredSignatureError, JWTError, jwt
 from datetime import timedelta, datetime
@@ -7,36 +9,32 @@ from passlib.context import CryptContext
 from app.models.user_model import User
 from app.models.refresh_token_model import RefreshToken
 from app.services.token_service import add_to_blacklist
+from app.tasks.mail_tasks import send_otp_email_task, send_verify_email_task
 from config import get_settings
 
 #JWT
 settings = get_settings()
-SECRET_KEY = settings.SECRET_KEY
-REFRESH_SECRET_KEY = settings.REFRESH_SECRET_KEY
-ALGORITHM = settings.ALGORITHM
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 #Tao token
 def create_access_token(data: dict):
     to_encode = data.copy()
     to_encode.update({"jti": str(uuid4())})
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire})
     to_encode.update({"iat": datetime.utcnow()})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.refresh_secret_key, algorithm=settings.algorithm)
 
 #Decode token/ verify token
 def decode_access_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=settings.algorithm)
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(401, {
@@ -120,7 +118,7 @@ def login(db, data):
     db_token = RefreshToken(
         user_id=user.user_id,
         hashed_token=hash_token(refresh_token),
-        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expires_at=datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     )
     db.add(db_token)
     db.commit()
@@ -205,3 +203,65 @@ def change_password(db, current_user, data):
     user.password = hash_password(data.new_password)
     db.commit()
     return {"message": "Password changed successfully"}
+
+EMAIL_VERIFY_PREFIX = "email_verify:"
+PASSWORD_RESET_PREFIX = "password_reset"
+
+async def send_verify_email(current_user, redis_client):
+    if current_user.email_verified:
+        return {"message": "Email da xac thuc"}
+    
+    verify_token = secrets.token_urlsafe(32)
+    redis_key = f"{EMAIL_VERIFY_PREFIX}{verify_token}"
+    ttl_seconds = settings.email_verify_expire_minutes * 60
+
+    await redis_client.setex(redis_key, ttl_seconds, str(current_user.user_id))
+
+    verify_link = f"{settings.frontend_url}/#/verify-email?token={verify_token}"
+
+    send_verify_email_task.delay(current_user.email, verify_link)
+    
+    return {"message": "da gui email xac thuc"}
+
+async def veri_email(db, data, redis_client):
+    redis_key = f"{EMAIL_VERIFY_PREFIX}{data.token}"
+    user_id = await redis_client.get(redis_key)
+
+    if not user_id:
+        raise HTTPException(400, {
+            "code": "INVALID_OR_EXPIRED_VERIFY_TOKEN",
+            "message": "Link xác thực không hợp lệ hoặc đã hết hạn"
+        })
+
+    user = db.query(User).filter(User.user_id == int(user_id)).first()
+    if not user:
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
+
+    user.email_verified = True
+    db.commit()
+
+    await redis_client.delete(redis_key)
+
+    return {"message": "Xác thực email thành công"}
+
+async def forgot_password(db, data, redis_client):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user: 
+        raise HTTPException(401, {
+            "code": "USER_UNKOWN",
+            "message": "Nguoi dung khong hop le"
+        })
+    
+    otp = f"{random.randint(100000, 999999)}"
+    redis_key = f"{PASSWORD_RESET_PREFIX}{data.email}"
+    ttl_seconds = settings.password_reset_otp_expire_minutes * 60
+    
+    await redis_client.setex(redis_key, ttl_seconds, otp)
+
+    send_otp_email_task.delay(user.email, otp)
+    
+    return {"message": "Xác thực "}

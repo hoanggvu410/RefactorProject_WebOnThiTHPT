@@ -1,5 +1,6 @@
 from celery import Celery
 
+from app.tasks import mail_tasks
 from config import get_settings
 
 settings = get_settings()
@@ -14,5 +15,8 @@ celery_app = Celery(
 celery_app.conf.update(
     task_ignore_result=True, #khong luu kqua vao Redis de do ton RAM
     task_serializer="json",
-    accept_content=["json"]
+    accept_content=["json"],
+    broker_pool_limit=1
 )
+
+celery_app.autodiscover_tasks(["app.tasks.mail_tasks"])

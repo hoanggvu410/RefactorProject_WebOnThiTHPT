@@ -1,5 +1,3 @@
-import os
-import redis.asyncio as aioredis
 from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -15,13 +13,13 @@ class Settings(BaseSettings):
     redis_url: str = DEFAULT_REDIS_URL
 
     #JWT
-    SECRET_KEY: str
-    REFRESH_SECRET_KEY: str
-    ALGORITHM: str = "HS256"
+    secret_key: str
+    refresh_secret_key: str
+    algorithm: str
 
     #Token
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    access_token_expire_minutes: int
+    refresh_token_expire_days: int
 
     #cau hinh hang so he thong
     UPLOAD_DIR: str = "uploads/"
@@ -32,9 +30,19 @@ class Settings(BaseSettings):
     AVATAR_MAX_SIZE: int = 2 * 1024 * 1024  # 2MB
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
-    debug: bool = False
-    host: str = "127.0.0.1"
-    port: int = 8000
+    #SMTP Server
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_password: str
+
+    frontend_url: str
+    email_verify_expire_minutes: int
+    password_reset_otp_expire_minutes: int
+
+    debug: bool 
+    host: str 
+    port: int 
 
     @field_validator("debug", mode="before")
     @classmethod
