@@ -39,8 +39,9 @@ def change_password(data: ChangePassword, db: Session = Depends(get_db), current
 async def send_verify_email(
     current_user = Depends(get_current_user),
     redis_client: Redis = Depends(get_redis),
+    db: Session = Depends(get_db)
 ):
-    return await auth_service.send_verify_email(current_user, redis_client)
+    return await auth_service.send_verify_email(db,current_user, redis_client)
 
 @router.post("/verify-email")
 async def verify_email(
