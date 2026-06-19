@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
 async def register_user(data: RegisterUser, db: Session = Depends(get_db)):
-    return auth_service.register(db, data)
+    return await auth_service.register(db, data)
 
 @router.post("/login")
 def login(data: LoginUser, db: Session = Depends(get_db)):
@@ -39,9 +39,8 @@ def change_password(data: ChangePassword, db: Session = Depends(get_db), current
 async def send_verify_email(
     current_user = Depends(get_current_user),
     redis_client: Redis = Depends(get_redis),
-    db: Session = Depends(get_db),
 ):
-    return await auth_service.send_verify_email(db, current_user, redis_client)
+    return await auth_service.send_verify_email(current_user, redis_client)
 
 @router.post("/verify-email")
 async def verify_email(
@@ -59,8 +58,8 @@ async def forgot_password(
 ):
     return await auth_service.forgot_password(db, data, redis_client)
 
-@router.post("/verify-reset-otp")
-async def verify_reset_otp(
+@router.post("/verify_otp")
+async def verify_otp(
     data: VerifyOtpRequest,
     redis_client: Redis = Depends(get_redis),
     db: Session = Depends(get_db)
