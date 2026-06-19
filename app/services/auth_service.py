@@ -232,6 +232,9 @@ async def verify_email(db, data, redis_client):
     redis_key = f"{EMAIL_VERIFY_PREFIX}{data.token}"
     user_id = await redis_client.get(redis_key)
 
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode("utf-8")
+
     if not user_id:
         raise HTTPException(400, {
             "code": "INVALID_OR_EXPIRED_VERIFY_TOKEN",
@@ -267,7 +270,11 @@ async def forgot_password(db, data, redis_client):
     
     await redis_client.setex(redis_key, ttl_seconds, otp)
 
-    send_otp_email_task.delay(user.email, otp)
+    try:
+        send_otp_email_task.delay(user.email, otp)
+    except Exception:
+        # Không để lỗi gửi mail làm hỏng API quên mật khẩu
+        pass
     
     return {"message": "Xác thực "}
 
@@ -283,6 +290,9 @@ async def verify_otp(db, data, redis_client):
     #lay otp tu redis
     otp_key = f"{PASSWORD_RESET_PREFIX}{data.email}"
     saved_otp = await redis_client.get(otp_key)
+
+    if isinstance(saved_otp, bytes):
+        saved_otp = saved_otp.decode("utf-8")
 
     #kiem tra otp het han
     if not saved_otp:
@@ -321,6 +331,9 @@ async def reset_password(db, data, redis_client):
     #lay user_id
     reset_key = f"password_reset_verified:{data.reset_token}"
     user_id = await redis_client.get(reset_key)
+
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode("utf-8")
 
     if not user_id:
         raise HTTPException(400, {
