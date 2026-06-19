@@ -14,6 +14,7 @@ class UserMeResponse(BaseModel):
     name: str
     username: str
     email: str
+    email_verified: bool
     role: str
     grade: int
     avatar_url: Optional[str] = None

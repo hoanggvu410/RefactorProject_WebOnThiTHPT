@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     #database (Pydantic tự động map với DATABASE_URL trong file .env hoặc Render)
     database_url: str = DEFAULT_DATABASE_URL
 
+    vite_api_base_url: str = "http://localhost:8000"
+
     #redis
     redis_url: str = DEFAULT_REDIS_URL
 

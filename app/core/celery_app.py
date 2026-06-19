@@ -8,6 +8,7 @@ celery_app = Celery(
     "onthi_tasks",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    include=["app.tasks.mail_tasks"],
 )
 
 celery_app.conf.update(
@@ -16,5 +17,3 @@ celery_app.conf.update(
     accept_content=["json"],
     broker_pool_limit=1
 )
-
-celery_app.autodiscover_tasks(["app.tasks"])

@@ -1,6 +1,7 @@
 import hashlib
 import random
 import secrets
+from urllib.parse import quote
 from uuid import uuid4
 from jose import ExpiredSignatureError, JWTError, jwt
 from datetime import timedelta, datetime
@@ -205,25 +206,29 @@ def change_password(db, current_user, data):
     return {"message": "Password changed successfully"}
 
 EMAIL_VERIFY_PREFIX = "email_verify:"
-PASSWORD_RESET_PREFIX = "password_reset"
+PASSWORD_RESET_PREFIX = "password_reset_otp:"
 
-async def send_verify_email(current_user, redis_client):
-    if current_user.email_verified:
-        return {"message": "Email da xac thuc"}
+async def send_verify_email(db, current_user, redis_client):
+    user = db.query(User).filter(User.user_id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
     
     verify_token = secrets.token_urlsafe(32)
     redis_key = f"{EMAIL_VERIFY_PREFIX}{verify_token}"
     ttl_seconds = settings.email_verify_expire_minutes * 60
 
-    await redis_client.setex(redis_key, ttl_seconds, str(current_user.user_id))
+    await redis_client.setex(redis_key, ttl_seconds, str(user.user_id))
 
-    verify_link = f"{settings.frontend_url}/#/verify-email?token={verify_token}"
+    verify_link = f"{settings.frontend_url}/#/verify-email?token={quote(verify_token, safe='')}"
 
-    send_verify_email_task.delay(current_user.email, verify_link)
+    send_verify_email_task.delay(user.email, verify_link)
     
     return {"message": "da gui email xac thuc"}
 
-async def veri_email(db, data, redis_client):
+async def verify_email(db, data, redis_client):
     redis_key = f"{EMAIL_VERIFY_PREFIX}{data.token}"
     user_id = await redis_client.get(redis_key)
 
@@ -251,7 +256,7 @@ async def forgot_password(db, data, redis_client):
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user: 
-        raise HTTPException(401, {
+        raise HTTPException(400, {
             "code": "USER_UNKOWN",
             "message": "Nguoi dung khong hop le"
         })
@@ -265,3 +270,77 @@ async def forgot_password(db, data, redis_client):
     send_otp_email_task.delay(user.email, otp)
     
     return {"message": "Xác thực "}
+
+async def verify_otp(db, data, redis_client):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(400, {
+            "code": "USER_UNKNOWN",
+            "message": "Nguoi dung khong hop le"
+        })
+    
+    #lay otp tu redis
+    otp_key = f"{PASSWORD_RESET_PREFIX}{data.email}"
+    saved_otp = await redis_client.get(otp_key)
+
+    #kiem tra otp het han
+    if not saved_otp:
+        raise HTTPException(400, {
+            "code": "OTP_EXPIRED",
+            "message": "OTP het han"
+        })
+    
+    #ss otp
+    if saved_otp != data.otp:
+        raise HTTPException(400, {
+            "code": "INVALID_OTP",
+            "message": "OTP khong hop le"
+        })
+    
+    #tao reset token
+    reset_token = secrets.token_urlsafe(32)
+    reset_key = f"password_reset_verified:{reset_token}"
+
+    #luu vao redis
+    await redis_client.setex(
+        reset_key, 
+        10 * 60, #10p
+        str(user.user_id)
+    )
+
+    #neu dung thi xoa ma otp
+    await redis_client.delete(otp_key)
+
+    return {
+        "message": "OTP hop le",
+        "reset_token": reset_token
+    }
+
+async def reset_password(db, data, redis_client):
+    #lay user_id
+    reset_key = f"password_reset_verified:{data.reset_token}"
+    user_id = await redis_client.get(reset_key)
+
+    if not user_id:
+        raise HTTPException(400, {
+            "code": "USER_UNKNOWN",
+            "message": "Nguoi dung khong hop le"
+        })
+
+    user = db.query(User).filter(User.user_id == int(user_id)).first()
+    if not user:
+        raise HTTPException(404, {
+            "code": "USER_NOT_FOUND",
+            "message": "User not found"
+        })
+    
+    #doi mat khau
+    user.password = hash_password(data.new_password)
+    db.commit()
+
+    await redis_client.delete(reset_key)
+
+    return{
+        "message": "Doi mat khau thanh cong"
+    }

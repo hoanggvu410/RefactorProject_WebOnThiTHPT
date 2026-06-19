@@ -17,15 +17,15 @@ function InfoRow({ label, value }) {
 export default function Profile() {
   const { apiFetch, me, refreshMe, showToast } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", grade: "" });
+  const [form, setForm] = useState({ name: "", grade: "" });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [sendingVerify, setSendingVerify] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setForm({
       name: me?.name || "",
-      email: me?.email || "",
       grade: me?.grade ? String(me.grade) : ""
     });
   }, [me]);
@@ -40,7 +40,6 @@ export default function Profile() {
         method: "PATCH",
         body: JSON.stringify({
           name: form.name.trim(),
-          email: form.email.trim(),
           grade: form.grade ? Number(form.grade) : undefined
         })
       });
@@ -78,7 +77,24 @@ export default function Profile() {
     }
   }
 
+  async function handleSendVerifyEmail() {
+    setSendingVerify(true);
+    setError("");
+
+    try {
+      await apiFetch("/auth/send-verify-email", { method: "POST" });
+      showToast("Đã gửi email xác thực.");
+      await refreshMe();
+      window.location.hash = "#/verify-email?sent=1";
+    } catch (verifyError) {
+      setError(verifyError.message || "Không thể gửi email xác thực.");
+    } finally {
+      setSendingVerify(false);
+    }
+  }
+
   const avatarUrl = resolveApiUrl(me?.avatar_url || DEFAULT_AVATAR_URL);
+  const emailVerified = me?.email_verified === true;
 
   return (
     <>
@@ -114,6 +130,16 @@ export default function Profile() {
                 </button>
               )}
             </div>
+            <div className="exam-actions">
+              <button
+                className="btn-secondary"
+                type="button"
+                disabled={sendingVerify || emailVerified}
+                onClick={handleSendVerifyEmail}
+              >
+                {emailVerified ? "Email đã xác thực" : sendingVerify ? "Đang gửi..." : "Xác thực email"}
+              </button>
+            </div>
 
             {error && <div className="form-error">{error}</div>}
 
@@ -124,14 +150,6 @@ export default function Profile() {
                   <input
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                  />
-                </label>
-                <label>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   />
                 </label>
                 <label>
@@ -158,7 +176,7 @@ export default function Profile() {
                     onClick={() => {
                       setEditing(false);
                       setError("");
-                      setForm({ name: me?.name || "", email: me?.email || "", grade: me?.grade ? String(me.grade) : "" });
+                      setForm({ name: me?.name || "", grade: me?.grade ? String(me.grade) : "" });
                     }}
                   >
                     Hủy
@@ -171,6 +189,7 @@ export default function Profile() {
                 <InfoRow label="Họ tên" value={me?.name} />
                 <InfoRow label="Username" value={me?.username} />
                 <InfoRow label="Email" value={me?.email} />
+                <InfoRow label="Trạng thái email" value={emailVerified ? "Đã xác thực" : "Chưa xác thực"} />
                 <InfoRow label="Vai trò" value={me?.role} />
                 <InfoRow label="Lớp" value={me?.grade} />
               </div>

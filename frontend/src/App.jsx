@@ -14,6 +14,7 @@ import News from "./pages/News.jsx";
 import Profile from "./pages/Profile.jsx";
 import Register from "./pages/Register.jsx";
 import Subjects from "./pages/Subjects.jsx";
+import VerifyEmail from "./pages/VerifyEmail.jsx";
 
 const routeMap = {
   "#/": Home,
@@ -22,6 +23,7 @@ const routeMap = {
   "#/exams": Exams,
   "#/documents": Document,
   "#/register": Register,
+  "#/verify-email": VerifyEmail,
   "#/profile": Profile,
   "#/dashboard": Dashboard,
   "#/history": History,

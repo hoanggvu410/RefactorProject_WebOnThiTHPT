@@ -906,6 +906,20 @@ button:disabled {
   margin-top: 20px;
 }
 
+.link-button {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+}
+
+.link-button:hover {
+  color: var(--primary-hover);
+}
+
 .toast {
   position: fixed;
   top: 20px;
