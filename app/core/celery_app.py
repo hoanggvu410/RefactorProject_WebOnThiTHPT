@@ -1,6 +1,4 @@
 from celery import Celery
-
-from app.tasks import mail_tasks
 from config import get_settings
 
 settings = get_settings()
@@ -19,4 +17,4 @@ celery_app.conf.update(
     broker_pool_limit=1
 )
 
-celery_app.autodiscover_tasks(["app.tasks.mail_tasks"])
+celery_app.autodiscover_tasks(["app.tasks"])

@@ -1,7 +1,7 @@
 
 import smtplib
 
-from app.core import celery_app
+from app.core.celery_app import celery_app
 from app.utils.mailer import send_smtp_email
 from config import get_settings
 
@@ -12,9 +12,9 @@ RETRY_CONFIG = {
     "default_retry_delay": 60 #thu lai sau 1 phut
 }
 
-settings = get_settings
+settings = get_settings()
 
-@celery_app.task(name="tasks.send_veify_email", **RETRY_CONFIG)
+@celery_app.task(name="tasks.send_verify_email", **RETRY_CONFIG)
 def send_verify_email_task(email: str, verify_link: str):
     subject = "[Sĩ Tử Chiến] Xác thực tài khoản của bạn"
     html_content = f"""
