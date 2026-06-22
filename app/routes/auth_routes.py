@@ -59,13 +59,13 @@ async def forgot_password(
 ):
     return await auth_service.forgot_password(db, data, redis_client)
 
-@router.post("/verify_otp")
-async def verify_otp(
+@router.post("/verify-reset-otp")
+async def verify_reset_otp(
     data: VerifyOtpRequest,
     redis_client: Redis = Depends(get_redis),
     db: Session = Depends(get_db)
 ):
-    return await auth_service.verify_otp(db, data, redis_client)
+    return await auth_service.verify_reset_otp(db, data, redis_client)
 
 @router.post("/reset-password")
 async def reset_password(

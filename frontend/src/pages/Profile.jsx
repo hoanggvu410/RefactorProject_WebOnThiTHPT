@@ -14,6 +14,10 @@ function InfoRow({ label, value }) {
   );
 }
 
+function isEmailVerified(value) {
+  return value === true || value === 1 || value === "true";
+}
+
 export default function Profile() {
   const { apiFetch, me, refreshMe, showToast } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -94,7 +98,7 @@ export default function Profile() {
   }
 
   const avatarUrl = resolveApiUrl(me?.avatar_url || DEFAULT_AVATAR_URL);
-  const emailVerified = me?.email_verified === true;
+  const emailVerified = isEmailVerified(me?.email_verified);
 
   return (
     <>
@@ -130,16 +134,18 @@ export default function Profile() {
                 </button>
               )}
             </div>
-            <div className="exam-actions">
-              <button
-                className="btn-secondary"
-                type="button"
-                disabled={sendingVerify || emailVerified}
-                onClick={handleSendVerifyEmail}
-              >
-                {emailVerified ? "Email đã xác thực" : sendingVerify ? "Đang gửi..." : "Xác thực email"}
-              </button>
-            </div>
+            {!emailVerified && (
+              <div className="exam-actions">
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={sendingVerify}
+                  onClick={handleSendVerifyEmail}
+                >
+                  {sendingVerify ? "Đang gửi..." : "Xác thực email"}
+                </button>
+              </div>
+            )}
 
             {error && <div className="form-error">{error}</div>}
 
@@ -189,7 +195,7 @@ export default function Profile() {
                 <InfoRow label="Họ tên" value={me?.name} />
                 <InfoRow label="Username" value={me?.username} />
                 <InfoRow label="Email" value={me?.email} />
-                <InfoRow label="Trạng thái email" value={emailVerified ? "Đã xác thực" : "Chưa xác thực"} />
+                <InfoRow label="Trạng thái email" value={emailVerified ? "Đã xác thực email" : "Chưa xác thực"} />
                 <InfoRow label="Vai trò" value={me?.role} />
                 <InfoRow label="Lớp" value={me?.grade} />
               </div>

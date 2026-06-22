@@ -221,7 +221,7 @@ export default function Exams() {
                       type="button"
                       onClick={() => handleToggleMark(currentQuestionIndex)}
                     >
-                      {markedQuestions[currentQuestionIndex] ? "Bỏ đánh dấu" : "Đánh dấu xem lại"}
+                      {markedQuestions[currentQuestionIndex] ? "Bỏ đánh dấu" : "Đánh dấu"}
                     </button>
                   </div>
                   <p>{currentQuestion.content}</p>
@@ -283,7 +283,7 @@ export default function Exams() {
             </div>
             <div className="question-grid">
               {questions.map((question, index) => {
-                const answered = Boolean(answers[index]);
+                const answered = Boolean(answers[index]);s
                 const marked = Boolean(markedQuestions[index]);
                 return (
                   <button

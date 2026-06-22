@@ -278,7 +278,7 @@ async def forgot_password(db, data, redis_client):
     
     return {"message": "Xác thực "}
 
-async def verify_otp(db, data, redis_client):
+async def verify_reset_otp(db, data, redis_client):
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user:

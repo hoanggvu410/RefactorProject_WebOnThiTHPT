@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 from app.core.redis import get_redis
@@ -24,3 +24,11 @@ async def get_exam_by_uuid(exam_uuid: UUID, db: Session = Depends(get_db), redis
 @router.post("/create_exam")
 def create_exam(exam_data: CreateExam, db: Session = Depends(get_db), current_user= Depends(require_roles("giáo viên", "admin"))):
     return exam_service.create_exam(exam_data, db, current_user)
+
+@router.post("/import_csv")
+async def import_exam_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user = Depends(require_roles("giáo viên", "admin"))
+):
+    return await exam_service.import_exam_csv(file, db, current_user)

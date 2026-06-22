@@ -107,6 +107,11 @@ const resourceConfig = {
 
 const tabs = Object.entries(resourceConfig).map(([key, config]) => ({ key, label: config.label }));
 const PAGE_SIZE = 10;
+const EXAM_CSV_TEMPLATE = [
+  "title,subject_id,grade,duration,question_content,explanation,option_a,option_b,option_c,option_d,correct_option",
+  '"De thi Toan lop 10",1,10,60,"2 + 2 = ?","Cong don gian","3","4","5","6",B',
+  '"De thi Toan lop 10",1,10,60,"5 x 3 = ?","Nhan co ban","10","15","20","25",B'
+].join("\n");
 
 function createQuestionOption() {
   return { content: "", is_correct: false };
@@ -195,13 +200,15 @@ function buildQuery(state, resourceKey) {
 }
 
 export default function Admin() {
-  const { apiFetch, isAdmin } = useAuth();
+  const { apiFetch, isAdmin, showToast } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
   const [resources, setResources] = useState(createInitialState);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState(createCreateFormState("questions"));
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvError, setCsvError] = useState("");
 
   const activeConfig = resourceConfig[activeTab];
   const activeState = resources[activeTab];
@@ -357,6 +364,42 @@ export default function Admin() {
     }));
   }
 
+  function handleDownloadExamCsvTemplate() {
+    const blob = new Blob([EXAM_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "mau-de-thi.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleExamCsvUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setCsvUploading(true);
+    setCsvError("");
+
+    try {
+      await apiFetch("/exam/import_csv", {
+        method: "POST",
+        body: formData
+      });
+      await loadResource("exams", { page: 1 });
+      showToast("Đã upload CSV đề thi.");
+    } catch (error) {
+      setCsvError(error.message || "Không thể upload CSV đề thi.");
+    } finally {
+      setCsvUploading(false);
+      event.target.value = "";
+    }
+  }
+
   async function handleCreateSubmit(event) {
     event.preventDefault();
     setCreateSubmitting(true);
@@ -439,8 +482,26 @@ export default function Admin() {
           <button className="btn-primary" type="button" onClick={handleOpenCreateModal}>
             Tạo mới {activeConfig.label.slice(0, -1).toLowerCase()}
           </button>
+          {activeTab === "exams" && (
+            <>
+              <button className="btn-secondary" type="button" onClick={handleDownloadExamCsvTemplate}>
+                Tải mẫu CSV
+              </button>
+              <label className={`btn-secondary ${csvUploading ? "disabled" : ""}`}>
+                {csvUploading ? "Đang upload..." : "Upload CSV"}
+                <input
+                  accept=".csv,text/csv"
+                  disabled={csvUploading}
+                  onChange={handleExamCsvUpload}
+                  style={{ display: "none" }}
+                  type="file"
+                />
+              </label>
+            </>
+          )}
         </div>
       )}
+      {activeTab === "exams" && csvError && <div className="form-error">{csvError}</div>}
 
       <form className="admin-filters" onSubmit={handleSearch}>
         <div className="admin-filter-block">

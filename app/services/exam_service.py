@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 
 from fastapi import HTTPException
@@ -5,10 +7,10 @@ from sqlalchemy import or_
 
 from app.models.exam_model import Exam
 from app.models.subject_model import Subject
-from app.routes.question_routes import create_question
-from app.schemas.exam_schema import ExamQueryParams
-from app.schemas.question_schema import CreateQuestion
-from app.services.question_service import get_creator_uuid
+from app.schemas.exam_schema import CreateExam, ExamQueryParams
+from app.schemas.question_option_schema import CreateQuestionOption
+from app.schemas.question_schema import CreateQuestion, CreateQuestionForExam
+from app.services.question_service import create_question, get_creator_uuid
 
 
 def get_exams(params: ExamQueryParams, db):
@@ -58,7 +60,7 @@ def get_exams(params: ExamQueryParams, db):
         "limit": params.limit
     }
 
-def create_exam(exam_data, db, current_user):
+def create_exam(exam_data, db, current_user, commit: bool = True):
     subject = db.query(Subject).filter(Subject.subject_id == exam_data.subject_id).first()
     if not subject:
         raise HTTPException(404, {"code": "SUBJECT_NOT_FOUND", "message": "Subject not found"})
@@ -82,7 +84,7 @@ def create_exam(exam_data, db, current_user):
                 grade=exam_data.grade,
                 subject_id=exam_data.subject_id,
                 explanation=question_data.explanation,
-                questionOptions=question_data.questionOptions
+                QuestionOptions=question_data.QuestionOptions
             )
             question = create_question(create_question_data, db, current_user=current_user, commit=False)
             exam.questions.append(question)
@@ -188,3 +190,104 @@ async def get_exam_answers_cached(exam_uuid, db, redis_client):
         ex = 3600 
     )
     return payload
+
+CSV_REQUIRED_COLUMNS = {
+    "title",
+    "subject_id",
+    "grade",
+    "duration",
+    "question_content",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_option",
+}
+
+OPTION_COLUMNS = {
+    "A": "option_a",
+    "B": "option_b",
+    "C": "option_c",
+    "D": "option_d",
+}
+
+async def import_exam_csv(file, db, current_user):
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(400, {
+            "code": "INVALID_FILE_TYPE",
+            "message": "Chi upload file CSV"
+        })
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(400, {"code": "INVALID_CSV_ENCODING", "message": "CSV phải dùng UTF-8"})
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": "CSV thiếu header"})
+
+    missing = CSV_REQUIRED_COLUMNS - set(reader.fieldnames)
+    if missing:
+        raise HTTPException(400, {
+            "code": "INVALID_CSV_FORMAT",
+            "message": f"CSV thiếu cột: {', '.join(sorted(missing))}"
+        })
+
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": "CSV chưa có câu hỏi"})
+
+    first = rows[0]
+    title = first["title"].strip()
+    subject_id = int(first["subject_id"])
+    grade = int(first["grade"])
+    duration = int(first["duration"])
+
+    questions = []
+
+    for index, row in enumerate(rows, start=2):
+        if row["title"].strip() != title:
+            raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": f"Dòng {index}: title không khớp"})
+
+        correct = row["correct_option"].strip().upper()
+        if correct not in OPTION_COLUMNS:
+            raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": f"Dòng {index}: correct_option không hợp lệ"})
+
+        options = []
+        for key, column in OPTION_COLUMNS.items():
+            content = (row.get(column) or "").strip()
+            if content:
+                options.append(CreateQuestionOption(
+                    content=content,
+                    is_correct=(key == correct)
+                ))
+
+        if len(options) < 2:
+            raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": f"Dòng {index}: cần ít nhất 2 đáp án"})
+
+        if not any(option.is_correct for option in options):
+            raise HTTPException(400, {"code": "INVALID_CSV_FORMAT", "message": f"Dòng {index}: đáp án đúng bị trống"})
+
+        questions.append(CreateQuestionForExam(
+            content=row["question_content"].strip(),
+            explanation=(row.get("explanation") or "").strip() or None,
+            QuestionOptions=options
+        ))
+
+    exam_data = CreateExam(
+        title=title,
+        subject_id=subject_id,
+        grade=grade,
+        duration=duration,
+        questions=questions
+    )
+
+    exam = create_exam(exam_data, db, current_user)
+
+    return {
+        "message": "Import đề thi thành công",
+        "exam_uuid": exam["exam_uuid"],
+        "title": exam["title"],
+        "question_number": exam["questionNumber"]
+    }
