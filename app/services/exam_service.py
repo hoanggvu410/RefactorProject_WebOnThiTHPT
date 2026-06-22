@@ -7,10 +7,11 @@ from sqlalchemy import or_
 
 from app.models.exam_model import Exam
 from app.models.subject_model import Subject
+from app.routes.question_routes import create_question
 from app.schemas.exam_schema import CreateExam, ExamQueryParams
 from app.schemas.question_option_schema import CreateQuestionOption
 from app.schemas.question_schema import CreateQuestion, CreateQuestionForExam
-from app.services.question_service import create_question, get_creator_uuid
+from app.services.question_service import get_creator_uuid
 
 
 def get_exams(params: ExamQueryParams, db):
@@ -60,7 +61,7 @@ def get_exams(params: ExamQueryParams, db):
         "limit": params.limit
     }
 
-def create_exam(exam_data, db, current_user, commit: bool = True):
+def create_exam(exam_data, db, current_user):
     subject = db.query(Subject).filter(Subject.subject_id == exam_data.subject_id).first()
     if not subject:
         raise HTTPException(404, {"code": "SUBJECT_NOT_FOUND", "message": "Subject not found"})
