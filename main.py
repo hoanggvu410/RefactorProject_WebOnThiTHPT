@@ -1,6 +1,7 @@
 
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 import app
 from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
@@ -41,6 +42,11 @@ settings = get_settings()
 
 def create_app() -> FastAPI:
     app = FastAPI()
+
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key = settings.secret_key
+    )
 
     app.add_middleware(
     CORSMiddleware,

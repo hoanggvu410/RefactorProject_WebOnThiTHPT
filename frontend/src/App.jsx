@@ -11,6 +11,7 @@ import Exams from "./pages/Exams.jsx";
 import History from "./pages/History.jsx";
 import Home from "./pages/Home.jsx";
 import News from "./pages/News.jsx";
+import OAuthCallback from "./pages/OAuthCallback.jsx";
 import Profile from "./pages/Profile.jsx";
 import Register from "./pages/Register.jsx";
 import Subjects from "./pages/Subjects.jsx";
@@ -24,6 +25,7 @@ const routeMap = {
   "#/documents": Document,
   "#/register": Register,
   "#/verify-email": VerifyEmail,
+  "#/oauth/callback": OAuthCallback,
   "#/profile": Profile,
   "#/dashboard": Dashboard,
   "#/history": History,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiFetch } from "../services/api.js";
+import { API_BASE_URL, apiFetch } from "../services/api.js";
 
 const MODE_TITLES = {
   login: "Đăng nhập",
@@ -38,6 +38,10 @@ export default function LoginModal({ open, onClose }) {
   }, [open]);
 
   if (!open) return null;
+
+  function handleGoogleLogin() {
+    window.location.href = `${API_BASE_URL}/auth/google/login`;
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -136,6 +140,9 @@ export default function LoginModal({ open, onClose }) {
             setError("");
           }}>
             Quên mật khẩu?
+          </button>
+          <button className="btn-secondary" type="button" onClick={handleGoogleLogin}>
+            Đăng nhập với Google
           </button>
         </>
       );

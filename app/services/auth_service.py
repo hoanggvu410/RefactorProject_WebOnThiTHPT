@@ -91,6 +91,29 @@ def register(db, data):
     db.commit()
     return {"message": "user created successfully"}
 
+def create_token(db, user):
+    access_token = create_access_token(data={
+         "sub": user.username,
+         "role": user.role,
+         "user_id": user.user_id,
+         "user_uuid": str(user.uuid)
+     })
+    refresh_token = create_refresh_token(data={
+         "sub": user.username
+     })
+    db_token = RefreshToken(
+        user_id=user.user_id,
+        hashed_token=hash_token(refresh_token),
+        expires_at=datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+    )
+    db.add(db_token)
+    db.commit()
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
 #login
 def login(db, data):
     user = db.query(User).filter(User.username == data.username).first()
@@ -105,15 +128,11 @@ def login(db, data):
             'code': "INCORRECT_PASSWORD",
             'message': "Incorrect password"
         })
-    access_token = create_access_token(data={
-        "sub": user.username,
-        "role": user.role,
-        "user_id": user.user_id,
-        "user_uuid": str(user.uuid)
-    })
-    refresh_token = create_refresh_token(data={
-        "sub": user.username
-    })
+    tokens = create_token(db, user)
+    return {
+        "message": "Login successfully",
+        **tokens
+    }
 
 #luu refresh token vao db
     db_token = RefreshToken(
@@ -357,3 +376,81 @@ async def reset_password(db, data, redis_client):
     return{
         "message": "Doi mat khau thanh cong"
     }
+
+
+#OAuth2
+def get_or_create_oauth_user(db, user_info):
+    google_sub = user_info.get("sub")
+    email = user_info.get("email")
+    name = user_info.get("name") or email
+    avatar_url = user_info.get("picture")
+    email_verified = bool(user_info.get("email_verified"))
+
+    if not google_sub:
+        raise HTTPException(400, {
+            "code": "OAUTH_SUB_MISSING",
+            "message": "Google account id is missing"
+        })
+
+    if not email:
+        raise HTTPException(400, {
+            "code": "OAUTH_EMAIL_MISSING",
+            "message": "Google email is missing"
+        })
+
+    if not email_verified:
+        raise HTTPException(400, {
+            "code": "OAUTH_EMAIL_NOT_VERIFIED",
+            "message": "Google email is not verified"
+        })
+
+#kiem tra user da tung dang nhap bang gg chua, tim bang gg sub
+    user = db.query(User).filter(
+        User.oauth_provider=="google",
+        User.oauth_subject==google_sub
+    ).first()
+#neu co roi thi giu nguyen, neu chua thi lay cua google
+    if user:
+        user.name =user.name or name
+        user.avatar_url = user.avatar_url or avatar_url
+        user.email_verified = True
+        user.last_login = datetime.utcnow()
+        db.commit()
+        return user
+
+#truong hop dang nhap binh thg, kp bang gg, tim user bang email
+    user = db.query(User).filter(User.email == email).first()
+
+    if user:
+        user.oauth_provider = "google"
+        user.oauth_subject = google_sub
+        user.email_verified = True
+        user.avatar_url = user.avatar_url or avatar_url
+        user.last_login = datetime.utcnow()
+        db.commit()
+        return user
+
+    #neu khong co tai khoan
+    username = email.split("@")[0]
+    existing_username = db.query(User).filter(User.username == username).first()
+    #ten da ton tai
+    if existing_username:
+        username = f"{username}_{secrets.token_hex(4)}"
+    #ten chua ton tai
+    user = User(
+        name=name,
+        username=username,
+        email=email,
+        password=hash_password(secrets.token_urlsafe(32)),
+        email_verified=True,
+        avatar_url=avatar_url,
+        oauth_provider="google",
+        oauth_subject=google_sub,
+        grade=10,
+        last_login=datetime.utcnow(),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user

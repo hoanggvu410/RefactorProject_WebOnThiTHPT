@@ -1,13 +1,19 @@
-from fastapi import APIRouter, Depends
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 from sqlalchemy.orm import Session
+from app.core.oauth import oauth
 from app.core.redis import get_redis
 from app.schemas.auth_schema import ForgotPasswordRequest, RegisterUser, LoginUser, ChangePassword, ResetPasswordRequest, VerifyOtpRequest, verifyEmailRequest
 from app.dependencies.db_dependency import get_db
 from app.services import auth_service
 from app.schemas.auth_schema import RefreshTokenRequest
 from app.dependencies.auth_dependency import get_current_user, security
+from config import get_settings
 
+settings =get_settings()
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
@@ -74,3 +80,36 @@ async def reset_password(
     db: Session = Depends(get_db)
 ):
     return await auth_service.reset_password(db, data, redis_client)
+
+@router.get("/google/login")
+async def google_login(request: Request):
+    redirect_uri = settings.google_redirect_uri
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@router.get("/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        user_info = token.get("userinfo")
+
+        if not user_info:
+            user_info = await oauth.google.userinfo(token = token)
+
+        user = auth_service.get_or_create_oauth_user(db, user_info)
+        tokens = auth_service.create_token(db, user)
+
+        query = urlencode({
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+        })
+
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/#/oauth/callback?{query}"
+        )
+    except Exception:
+        query = urlencode({
+            "error": "oauth_failed"
+        })
+        return RedirectResponse(
+            url =f"{settings.frontend_url}/#/oauth/callback?{query}"
+        )

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     email_verify_expire_minutes: int
     password_reset_otp_expire_minutes: int
 
+    #OAuth2
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
+
     debug: bool 
     host: str 
     port: int 
