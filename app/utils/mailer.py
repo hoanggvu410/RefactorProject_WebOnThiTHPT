@@ -7,6 +7,7 @@ import resend
 from config import get_settings
 
 settings = get_settings()
+resend.api_key = settings.resend_api_key
 
 def send_resend_email(to_email: str, subject: str, html_content: str):
     try:
@@ -15,11 +16,11 @@ def send_resend_email(to_email: str, subject: str, html_content: str):
             "from": "Si Tu Chien <onboarding@resend.dev>",
             "to": [to_email],
             "subject": subject,
-            "html_content": html_content
+            "html": html_content,
         }
         email = resend.Emails.send(params)
         print("Gui mail xac thuc thanh cong")
         return email
     except Exception as e:
         print(f"RESEND ERROR: {str(e)}")
-        raise OSError(f"Resend API failed: {e}")
+        raise OSError(f"Resend API failed:{e}")
