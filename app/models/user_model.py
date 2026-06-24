@@ -22,8 +22,8 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now(), nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now(), nullable=False)
-    oauth_provider = Column(String, nullable=True, unique=True)
-    oauth_subject = Column(String, nullable=True, unique=True)
+    oauth_provider = Column(String, nullable=True)
+    oauth_subject = Column(String, nullable=True)
 
     results= relationship("Result", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")

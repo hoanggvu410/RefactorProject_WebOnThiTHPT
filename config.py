@@ -33,10 +33,10 @@ class Settings(BaseSettings):
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
 
     #SMTP Server
-    smtp_host: str
-    smtp_port: int
-    smtp_user: str
-    smtp_password: str
+    # smtp_host: str
+    # smtp_port: int
+    # smtp_user: str
+    # smtp_password: str
 
     frontend_url: str
     email_verify_expire_minutes: int
@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     google_client_id: str
     google_client_secret: str
     google_redirect_uri: str
+
+    #Resend
+    resend_api_key: str
 
     debug: bool 
     host: str 
