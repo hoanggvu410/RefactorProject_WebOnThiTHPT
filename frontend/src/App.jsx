@@ -53,7 +53,7 @@ export default function App() {
       return;
     }
     if (protectedRoutes.has(routeBase) && !isLoggedIn) {
-      showToast("Vui lòng đăng nhập để xem khu vực cá nhân.");
+      showToast("Đăng nhập thành công");
       window.location.hash = "#/";
       setRoute("#/");
       return;
