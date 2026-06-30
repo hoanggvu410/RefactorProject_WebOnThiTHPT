@@ -17,8 +17,8 @@ settings =get_settings()
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
-async def register_user(data: RegisterUser, db: Session = Depends(get_db)):
-    return await auth_service.register(db, data)
+def register_user(data: RegisterUser, db: Session = Depends(get_db)):
+    return auth_service.register(db, data)
 
 @router.post("/login")
 def login(data: LoginUser, db: Session = Depends(get_db)):

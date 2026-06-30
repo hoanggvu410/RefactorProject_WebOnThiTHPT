@@ -134,21 +134,6 @@ def login(db, data):
         **tokens
     }
 
-#luu refresh token vao db
-    db_token = RefreshToken(
-        user_id=user.user_id,
-        hashed_token=hash_token(refresh_token),
-        expires_at=datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    )
-    db.add(db_token)
-    db.commit()
-
-    return {
-        "message": "Login successfully",
-        "access_token": access_token,
-        "refresh_token": refresh_token
-    }
-
 #refresh
 def refresh_access_token(db, data):
     #tim refresh token trong db
