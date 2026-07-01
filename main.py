@@ -28,8 +28,55 @@ STATIC_DIR: Path = BASE_DIR / "app" / "static"
 
 settings = get_settings()
 
+tags_metadata = [
+    {
+        "name": "Auth",
+        "description": "Đăng ký, đăng nhập, refresh token, logout, đổi mật khẩu và khôi phục mật khẩu.",
+    },
+    {
+        "name": "Me",
+        "description": "Thông tin cá nhân của user đang đăng nhập, cập nhật hồ sơ và lịch sử làm bài.",
+    },
+    {
+        "name": "Exam",
+        "description": "Danh sách đề thi, chi tiết đề thi, tạo đề và import đề bằng CSV.",
+    },
+    {
+        "name": "Results",
+        "description": "Nộp bài, xem kết quả và review đáp án sau khi làm bài.",
+    },
+    {
+        "name": "Questions",
+        "description": "Quản lý câu hỏi và đáp án cho đề thi.",
+    },
+    {
+        "name": "Subjects",
+        "description": "Danh sách môn học và thông tin từng môn.",
+    },
+    {
+        "name": "Documents",
+        "description": "Tài liệu học tập, upload tài liệu và quản lý tài liệu.",
+    },
+    {
+        "name": "News",
+        "description": "Tin tức, thông báo và bài viết trong hệ thống.",
+    },
+    {
+        "name": "Users",
+        "description": "Quản trị user, chỉ dành cho admin.",
+    },
+]
+
 def create_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(
+        title="Sĩ Tử Chiến API",
+        description="Backend API cho hệ thống ôn thi THPT: auth, đề thi, kết quả, tài liệu, tin tức.",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        openapi_tags=tags_metadata,
+    )
 
     app.add_middleware(
         SessionMiddleware,
