@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 from fastapi import HTTPException
-from flask_migrate import current
 import pytest
 from app.schemas.result_schema import ReviewResultResponse
 from app.services import result_service
