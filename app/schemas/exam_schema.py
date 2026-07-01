@@ -39,3 +39,17 @@ class CreateExam(BaseModel):
     grade: int = Field(...,ge=10, le=12)
     duration: int
     questions: list[CreateQuestionForExam] = Field(...,min_length=1) #moi de co it nhat 1 cau hoi   
+
+class CreateExamResponse(BaseModel):
+    exam_uuid: UUID
+    title: str
+    questionNumber: int
+    duration: int
+    questions: list[QuestionResponse]
+
+
+class ImportExamCSVResponse(BaseModel):
+    message: str
+    exam_uuid: UUID
+    title: str
+    question_number: int

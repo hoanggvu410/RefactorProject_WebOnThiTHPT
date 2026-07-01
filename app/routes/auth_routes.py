@@ -1,3 +1,4 @@
+import re
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request
@@ -6,7 +7,20 @@ from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 from app.core.oauth import oauth
 from app.core.redis import get_redis
-from app.schemas.auth_schema import ForgotPasswordRequest, RegisterUser, LoginUser, ChangePassword, ResetPasswordRequest, VerifyOtpRequest, verifyEmailRequest
+from app.schemas.auth_schema import (
+    ForgotPasswordRequest,
+    RegisterUser,
+    LoginUser,
+    ChangePassword,
+    ResetPasswordRequest,
+    VerifyOtpRequest,
+    verifyEmailRequest,
+    RefreshTokenRequest,
+    MessageResponse,
+    TokenResponse,
+    AccessTokenResponse,
+    ResetTokenResponse,
+)
 from app.dependencies.db_dependency import get_db
 from app.services import auth_service
 from app.schemas.auth_schema import RefreshTokenRequest
@@ -16,19 +30,19 @@ from config import get_settings
 settings =get_settings()
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-@router.post("/register")
+@router.post("/register", response_model=MessageResponse)
 def register_user(data: RegisterUser, db: Session = Depends(get_db)):
     return auth_service.register(db, data)
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login(data: LoginUser, db: Session = Depends(get_db)):
     return auth_service.login(db, data)
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=AccessTokenResponse)
 def refresh(data: RefreshTokenRequest, db: Session = Depends(get_db)):
     return auth_service.refresh_access_token(db, data)
 
-@router.post("/logout")
+@router.post("/logout", response_model=MessageResponse)
 async def logout(
     data: RefreshTokenRequest, 
     credentials = Depends(security),
@@ -37,11 +51,11 @@ async def logout(
 ):
     return await auth_service.logout(data, credentials, redis_client, db)
 
-@router.post("/change-password")
+@router.post("/change-password", response_model=MessageResponse)
 def change_password(data: ChangePassword, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     return auth_service.change_password(db, current_user, data)
 
-@router.post("/send-verify-email")
+@router.post("/send-verify-email", response_model=MessageResponse)
 async def send_verify_email(
     current_user = Depends(get_current_user),
     redis_client: Redis = Depends(get_redis),
@@ -49,7 +63,7 @@ async def send_verify_email(
 ):
     return await auth_service.send_verify_email(db,current_user, redis_client)
 
-@router.post("/verify-email")
+@router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
     data: verifyEmailRequest,
     redis_client: Redis = Depends(get_redis),
@@ -57,7 +71,7 @@ async def verify_email(
 ):
     return await auth_service.verify_email(db, data, redis_client)
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=MessageResponse)
 async def forgot_password(
     data: ForgotPasswordRequest,
     redis_client: Redis = Depends(get_redis),
@@ -65,7 +79,7 @@ async def forgot_password(
 ):
     return await auth_service.forgot_password(db, data, redis_client)
 
-@router.post("/verify-reset-otp")
+@router.post("/verify-reset-otp", response_model=ResetTokenResponse)
 async def verify_reset_otp(
     data: VerifyOtpRequest,
     redis_client: Redis = Depends(get_redis),
@@ -73,7 +87,7 @@ async def verify_reset_otp(
 ):
     return await auth_service.verify_reset_otp(db, data, redis_client)
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(
     data: ResetPasswordRequest,
     redis_client: Redis = Depends(get_redis),

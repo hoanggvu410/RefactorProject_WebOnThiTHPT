@@ -5,7 +5,7 @@ from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 from app.core.redis import get_redis
 from app.schemas.exam_schema import SubmitExam
-from app.schemas.result_schema import ReviewResultResponse
+from app.schemas.result_schema import ReviewResultResponse, SubmitExamResponse
 from app.dependencies.auth_dependency import get_current_user
 from app.dependencies.db_dependency import get_db
 from app.models.user_model import User
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/results", tags=["Results"], dependencies=[Depends(ge
 def get_results_by_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return result_service.get_results_by_user(user_id, db, current_user)
 
-@router.post("/submit-exam")
+@router.post("/submit-exam", response_model=SubmitExamResponse)
 async def submit_exam(
     data: SubmitExam,
     db: Session = Depends(get_db),
