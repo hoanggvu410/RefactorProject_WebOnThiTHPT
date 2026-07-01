@@ -16,7 +16,7 @@ def test_get_exam_by_uuid_success(client):
         mock_get_exam.return_value = fake_result
 
 
-    response = client.get(f"/exam/{exam_uuid}")
+        response = client.get(f"/exam/{exam_uuid}")
 
     assert response.status_code == 200
     assert response.json()["title"] == "Math Exam"

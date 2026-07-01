@@ -1,0 +1,30 @@
+name: Run Pytest Automatically
+
+# Kích hoạt khi có hành động push hoặc tạo Pull Request vào nhánh main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest # Chạy trên máy chủ ảo Linux Ubuntu của GitHub
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4 # Tải code từ repo về máy ảo
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12' # Cài đặt Python phiên bản đúng của bạn
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt # Cài đặt bộ thư viện test độc lập
+
+    - name: Run Pytest with Coverage
+      run: |
+        python -m pytest --cov=app app/tests/ # Chạy test tự động!
