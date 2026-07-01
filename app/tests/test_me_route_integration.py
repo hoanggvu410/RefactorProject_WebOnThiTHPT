@@ -6,7 +6,7 @@ from main import app
 from app.dependencies.auth_dependency import get_current_user
 
 
-def tets_get_me_success(client):
+def test_get_me_success(client):
     fake_user = SimpleNamespace(
         user_id =1,
         uuid = UUID("11111111-1111-1111-1111-111111111111"),

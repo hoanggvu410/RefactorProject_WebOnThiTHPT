@@ -3,7 +3,6 @@ from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import app
-from app.base.db import engine, Base
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.subject_routes import router as subject_router
@@ -13,17 +12,7 @@ from app.routes.question_routes import router as question_router
 from app.routes.exam_routes import router as exam_router
 from app.routes.results_routes import router as result_router
 from app.routes.me_routes import router as me_router
-from app.models.user_model import User
-from app.models.result_model import Result
-from app.models.exam_model import Exam
-from app.models.question_model import Question
-from app.models.question_option_model import QuestionOption
-from app.models.exam_question_model import ExamQuestion
-from app.models.subject_model import Subject
-from app.models.document_model import Document
-from app.models.news_model import News
-from app.models.user_answer_model import UserAnswer
-from app.models.refresh_token_model import RefreshToken
+
 
 
 from fastapi import FastAPI, HTTPException, Request
@@ -32,7 +21,6 @@ from fastapi.staticfiles import StaticFiles
 
 from config import get_settings
 
-Base.metadata.create_all(bind=engine)
 BASE_DIR: Path = Path(__file__).resolve().parent
 FRONTEND_DIR: Path = BASE_DIR / "frontend"
 FRONTEND_DIST_DIR: Path = FRONTEND_DIR / "dist"

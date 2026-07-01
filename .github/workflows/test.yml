@@ -24,7 +24,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-test.txt # Cài đặt bộ thư viện test độc lập
-
+    - name: Run migrations
+      run: |
+        alembic upgrade head
     - name: Run Pytest with Coverage
       env:
         DATABASE_URL: postgresql://postgres:123456@localhost:5432/postgres
