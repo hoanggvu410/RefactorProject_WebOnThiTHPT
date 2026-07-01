@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import Query
 from pydantic import BaseModel
 
@@ -21,3 +23,11 @@ class ResultQueryParams(BaseModel):
     keyword: str | None = Query(None)
     sort_by: str = "uuid"
     sort_order: str = "asc"
+
+class SubmitExamResponse(BaseModel):
+    message: str
+    result_uuid: UUID
+    score: float
+    correct_count: int
+    total_question: int
+    time_spent: int
