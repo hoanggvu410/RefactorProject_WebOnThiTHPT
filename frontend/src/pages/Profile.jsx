@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ScoreBoardTable from "../components/ScoreBoardTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { resolveApiUrl } from "../services/api.js";
@@ -202,6 +203,11 @@ export default function Profile() {
             )}
           </div>
         </section>
+      </div>
+
+      <SectionTitle>Bảng xếp hạng của bạn</SectionTitle>
+      <div className="content-box">
+        <ScoreBoardTable apiFetch={apiFetch} limit={10} />
       </div>
     </>
   );

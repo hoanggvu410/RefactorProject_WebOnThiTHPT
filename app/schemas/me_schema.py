@@ -47,3 +47,23 @@ class SubjectStat(BaseModel):
     subject_name: str
     total_exams: int
     avg_score: float
+
+class ScoreBoardItemResponse(BaseModel):
+    rank: int
+    result_uuid: UUID
+    exam_uuid: UUID
+    exam_title: str
+    subject_name: str
+    score: float
+    total_question: int
+    time_spent: int
+    submitted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ScoreBoardListResponse(BaseModel):
+    total: int
+    page: int
+    limit: int
+    items: List[ScoreBoardItemResponse]

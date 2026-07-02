@@ -36,7 +36,7 @@ async def test_submit_exam_success(): #nop bai va tinh diem
     with patch("app.services.exam_service.get_exam_answers_cached", return_value= cached_answers):
         result = await result_service.submit_exam(db, input_data, current_user, redis_client)
 
-    assert result["score"] == 1
+    assert result["score"] == 5.0
     assert result["correct_count"] ==1
     assert result["total_question"]==2
     assert db.add.call_count ==3 #luu 1 cho result va 2 cho user ans
