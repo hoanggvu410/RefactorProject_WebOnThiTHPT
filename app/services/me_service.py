@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, update
 from fastapi import HTTPException, status
 from typing import Optional
+from app.services.storage_service import upload_public_file
 from config import get_settings
 
 from app.models.exam_model import Exam
@@ -120,27 +121,19 @@ def upload_avatar(file, db, current_user):
     if file.size is not None and file.size > settings.AVATAR_MAX_SIZE:
         raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File too large"})
 
-    # random ten file va luu vao thu muc
-    new_filename = f"{uuid.uuid4().hex}.{file_extension}"
-
-    target_dir = os.path.join(settings.UPLOAD_DIR, "avatars")
-    os.makedirs(target_dir, exist_ok=True)
-    file_path = os.path.join(target_dir, new_filename)
-
     #luu vao storage
-    try:
-        contents = file.file.read()
-        if len(contents) > settings.AVATAR_MAX_SIZE:
-            raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File too large"})
-        with open(file_path, "wb") as f:
-            f.write(contents)
-    except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(500, {"code": "FILE_SAVE_ERROR", "message": "Failed to save file"})
+    contents = file.file.read()
+    if len(contents) > settings.AVATAR_MAX_SIZE:
+        raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File too large"})
+    object_path = f"{current_user.user_id}/{uuid.uuid4().hex}.{file_extension}"
     
     # cap nhat duong dan avatar vao db
-    avatar_url = f"/uploads/avatars/{new_filename}"
+    avatar_url = upload_public_file(
+        bucket=settings.supabase_avatar_bucket,
+        object_path=object_path,
+        contents=contents,
+        content_type=file.content_type,
+    )
     db.execute(
         update(User)
         .where(User.user_id == current_user.user_id)

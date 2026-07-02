@@ -19,3 +19,4 @@ Authlib==1.7.2
 httpx==0.27.2
 resend==2.32.2
 itsdangerous==2.2.0
+supabase==2.10.0

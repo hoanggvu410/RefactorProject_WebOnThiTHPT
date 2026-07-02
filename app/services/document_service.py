@@ -5,6 +5,7 @@ from fastapi import HTTPException, UploadFile
 from app.models.document_model import Document
 
 from app.schemas.document_schema import DocumentQueryParams
+from app.services.storage_service import upload_public_file
 from config import get_settings
 
 
@@ -70,24 +71,20 @@ def upload_document(
         raise HTTPException(400, {"code": "INVALID_FILE_TYPE", "message": "Invalid file type"})
     if file.size is not None and file.size > settings.DOCUMENT_MAX_SIZE:
         raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File size exceeds the maximum limit"})
+
+    #luu vao  supabase storage
+    contents = file.file.read()
+    if len(contents) > settings.DOCUMENT_MAX_SIZE:
+        raise HTTPException(400, {"code": "FILE_TOO_LARGE", "message": "File too large"})
     
-    #random ten file va luu vao storage
-    new_filename = f"{uuid.uuid4().hex}.{file_extension}"
-    target_dir = os.path.join(settings.UPLOAD_DIR, "documents")
-    os.makedirs(target_dir, exist_ok=True)
-    file_path = os.path.join(target_dir, new_filename)
+    object_path = f"{current_user.user_id}/{uuid.uuid4().hex}.{file_extension}"
 
-    #luu vao storage
-    try:
-        contents = file.file.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
-    except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(500, {"code": "FILE_SAVE_ERROR", "message": "Failed to save file"})
-
-    document_url = f"/uploads/documents/{new_filename}"
+    document_url = upload_public_file(
+        bucket=settings.supabase_document_bucket,
+        object_path=object_path,
+        contents=contents,
+        content_type=file.content_type
+    )
 
     new_document = Document(
         title=title,

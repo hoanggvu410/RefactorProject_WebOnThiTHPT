@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import DataTable from "../components/DataTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoExams } from "../data.js";
@@ -27,6 +26,13 @@ function formatTime(totalSeconds) {
 export default function Exams() {
   const { apiFetch, isLoggedIn } = useAuth();
   const [exams, setExams] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [draftFilters, setDraftFilters] = useState({
+    keyword: "",
+    subjectId: "",
+    grade: ""
+  });
+  const [appliedFilters, setAppliedFilters] = useState(draftFilters);
   const [detailExam, setDetailExam] = useState(null);
   const [activeExam, setActiveExam] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -49,16 +55,33 @@ export default function Exams() {
   );
 
   useEffect(() => {
+    async function loadSubjects() {
+      try {
+        const payload = await apiFetch("/subjects/");
+        setSubjects(Array.isArray(payload) ? payload : []);
+      } catch {
+        setSubjects([]);
+      }
+    }
+    loadSubjects();
+  }, [apiFetch]);
+
+  useEffect(() => {
     async function loadExams() {
       try {
-        const payload = await apiFetch("/exam/");
+        const params = new URLSearchParams();
+        if (appliedFilters.subjectId) params.set("subject_id", appliedFilters.subjectId);
+        if (appliedFilters.grade) params.set("grade", appliedFilters.grade);
+        if (appliedFilters.keyword.trim()) params.set("keyword", appliedFilters.keyword.trim());
+        const query = params.toString() ? `?${params.toString()}` : "";
+        const payload = await apiFetch(`/exam/${query}`);
         setExams(Array.isArray(payload) ? payload : payload?.items || []);
       } catch {
         setExams(demoExams);
       }
     }
     loadExams();
-  }, [apiFetch]);
+  }, [apiFetch, appliedFilters]);
 
   useEffect(() => {
     if (!activeExam || remainingSeconds <= 0) return undefined;
@@ -93,6 +116,23 @@ export default function Exams() {
   function handleCloseDetail() {
     setDetailExam(null);
     setDetailError("");
+  }
+
+  function handleFilterChange(field, value) {
+    setDraftFilters((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  function handleFilterSubmit(event) {
+    event.preventDefault();
+    setAppliedFilters(draftFilters);
+  }
+
+  function getSubjectLabel(row) {
+    const subject = subjects.find((item) => String(item.subject_id) === String(row.subject_id));
+    return subject?.subject_name || "Tổng hợp";
   }
 
   function handleStartPractice() {
@@ -283,7 +323,7 @@ export default function Exams() {
             </div>
             <div className="question-grid">
               {questions.map((question, index) => {
-                const answered = Boolean(answers[index]);s
+                const answered = Boolean(answers[index]);
                 const marked = Boolean(markedQuestions[index]);
                 return (
                   <button
@@ -346,34 +386,97 @@ export default function Exams() {
 
   return (
     <>
-      <SectionTitle>✏️ Đề thi</SectionTitle>
-      <div className="content-box">
-        <DataTable
-          columns={[
-            { label: "ID", key: "exam_id" },
-            { label: "Title", key: "title" },
-            { label: "Questions", key: "question_number" },
-            { label: "Duration", render: (row) => `${row.duration || 0} phút` },
-            {
-              label: "Action",
-              render: (row) => (
-                <button
-                  className="btn-secondary btn-small"
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    loadExamDetail(row);
-                  }}
+      <div className="library-page">
+        <header className="library-hero">
+          <h1>Thư viện đề thi luyện tập mới nhất</h1>
+          <p>Tổng hợp đề thi theo môn học, khối lớp, số câu và thời lượng để luyện tập nhanh hơn.</p>
+        </header>
+
+        <form className="catalog-filter" onSubmit={handleFilterSubmit}>
+          <label className="catalog-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={draftFilters.keyword}
+              placeholder="Nhập tên đề thi bạn cần tìm?"
+              onChange={(event) => handleFilterChange("keyword", event.target.value)}
+            />
+          </label>
+          <select
+            value={draftFilters.subjectId}
+            onChange={(event) => handleFilterChange("subjectId", event.target.value)}
+          >
+            <option value="">Tất cả các môn</option>
+            {subjects.map((subject) => (
+              <option key={subject.subject_id} value={subject.subject_id}>
+                {subject.subject_name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={draftFilters.grade}
+            onChange={(event) => handleFilterChange("grade", event.target.value)}
+          >
+            <option value="">Tất cả các lớp</option>
+            <option value="10">Lớp 10</option>
+            <option value="11">Lớp 11</option>
+            <option value="12">Lớp 12</option>
+          </select>
+          <button className="btn-primary catalog-filter-submit" type="submit">Tìm ngay</button>
+        </form>
+
+        <section className="catalog-section">
+          <div className="catalog-section-header">
+            <h2>Đề thi nổi bật</h2>
+            <span>{exams.length} đề thi</span>
+          </div>
+
+          {exams.length === 0 ? (
+            <div className="empty">Chưa có đề thi.</div>
+          ) : (
+            <div className="resource-grid">
+              {exams.map((exam) => (
+                <article
+                  className="resource-card exam-card"
+                  key={exam.uuid || exam.exam_uuid || exam.exam_id}
+                  tabIndex={0}
+                  onClick={() => loadExamDetail(exam)}
                 >
-                  Chi tiết
-                </button>
-              )
-            }
-          ]}
-          rows={exams}
-          emptyText="Chưa có đề thi."
-          onRowClick={loadExamDetail}
-        />
+                  <div className="resource-card-body">
+                    <h3>{exam.title}</h3>
+                    <p>{getSubjectLabel(exam)} - Lớp {exam.grade || "-"} - {exam.question_number || exam.questionNumber || 0} câu</p>
+                  </div>
+                  <div className="resource-card-details">
+                    <span>Thời gian: {exam.duration || 0} phút</span>
+                    <span>Môn: {getSubjectLabel(exam)}</span>
+                    <span>Lớp: {exam.grade || "-"}</span>
+                  </div>
+                  <div className="resource-actions">
+                    <button
+                      className="btn-secondary btn-small"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        loadExamDetail(exam);
+                      }}
+                    >
+                      Chi tiết
+                    </button>
+                    <button
+                      className="btn-primary btn-small"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        loadExamDetail(exam);
+                      }}
+                    >
+                      Làm bài
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       {detailExam && (

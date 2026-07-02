@@ -11,6 +11,12 @@ class Settings(BaseSettings):
 
     vite_api_base_url: str = "http://localhost:8000"
 
+    #supabase
+    supabase_url: str
+    supabase_service_role_key: str
+    supabase_avatar_bucket: str = "Si Tu Chien's avatars"
+    supabase_document_bucket: str = "Si tu Chien's documents"
+
     #redis
     redis_url: str = DEFAULT_REDIS_URL
 

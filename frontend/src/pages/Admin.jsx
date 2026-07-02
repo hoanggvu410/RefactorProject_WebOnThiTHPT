@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { resolveApiUrl } from "../services/api.js";
 
 function renderValue(value) {
   if (value === null || value === undefined) return "";
@@ -37,8 +38,7 @@ const resourceConfig = {
     sortOptions: [
       { value: "date", label: "Date" },
       { value: "title", label: "Title" },
-      { value: "published_at", label: "Published At" },
-      { value: "uuid", label: "UUID" }
+      { value: "published_at", label: "Published At" }
     ],
     columns: [
       { label: "STT", render: (_, index) => index + 1 },
@@ -54,23 +54,21 @@ const resourceConfig = {
       { value: "created_at", label: "Created At" },
       { value: "title", label: "Title" },
       { value: "grade", label: "Grade" },
-      { value: "subject_id", label: "Subject" },
-      { value: "uuid", label: "UUID" }
+      { value: "subject_id", label: "Subject" }
     ],
     columns: [
       { label: "STT", render: (_, index) => index + 1 },
       { label: "Title", key: "title" },
       { label: "Grade", key: "grade" },
       { label: "Subject", key: "subject_id" },
-      { label: "Link", render: (row) => row.link ? <a href={row.link} target="_blank" rel="noreferrer">Tải xuống</a> : "" }
+      { label: "Link", render: (row) => row.link ? <a href={resolveApiUrl(row.link)} target="_blank" rel="noreferrer">Tải xuống</a> : "" }
     ]
   },
   exams: {
     label: "Exams",
     endpoint: "/exam/",
-    defaultSort: "uuid",
+    defaultSort: "title",
     sortOptions: [
-      { value: "uuid", label: "UUID" },
       { value: "title", label: "Title" },
       { value: "grade", label: "Grade" },
       { value: "subject_id", label: "Subject" },
@@ -89,9 +87,8 @@ const resourceConfig = {
   questions: {
     label: "Questions",
     endpoint: "/questions/",
-    defaultSort: "uuid",
+    defaultSort: "content",
     sortOptions: [
-      { value: "uuid", label: "UUID" },
       { value: "content", label: "Content" },
       { value: "grade", label: "Grade" },
       { value: "subject_id", label: "Subject" }
@@ -203,10 +200,20 @@ export default function Admin() {
   const { apiFetch, isAdmin, showToast } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
   const [resources, setResources] = useState(createInitialState);
+  const [subjects, setSubjects] = useState([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState(createCreateFormState("questions"));
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [documentUploadOpen, setDocumentUploadOpen] = useState(false);
+  const [documentUploadForm, setDocumentUploadForm] = useState({
+    title: "",
+    subject_id: "",
+    grade: "10",
+    file: null
+  });
+  const [documentUploading, setDocumentUploading] = useState(false);
+  const [documentUploadError, setDocumentUploadError] = useState("");
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvError, setCsvError] = useState("");
 
@@ -255,6 +262,19 @@ export default function Admin() {
     if (!isAdmin) return;
     tabs.forEach((tab) => loadResource(tab.key));
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    async function loadSubjects() {
+      try {
+        const payload = await apiFetch("/subjects/");
+        setSubjects(Array.isArray(payload) ? payload : []);
+      } catch {
+        setSubjects([]);
+      }
+    }
+    loadSubjects();
+  }, [apiFetch, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -327,6 +347,54 @@ export default function Admin() {
     if (createSubmitting) return;
     setCreateModalOpen(false);
     setCreateError("");
+  }
+
+  function handleOpenDocumentUpload() {
+    setDocumentUploadForm({
+      title: "",
+      subject_id: subjects[0]?.subject_id ? String(subjects[0].subject_id) : "",
+      grade: "10",
+      file: null
+    });
+    setDocumentUploadError("");
+    setDocumentUploadOpen(true);
+  }
+
+  function handleCloseDocumentUpload() {
+    if (documentUploading) return;
+    setDocumentUploadOpen(false);
+    setDocumentUploadError("");
+  }
+
+  async function handleDocumentUploadSubmit(event) {
+    event.preventDefault();
+    if (!documentUploadForm.file) {
+      setDocumentUploadError("Vui lòng chọn file tài liệu.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", documentUploadForm.title);
+    formData.append("grade", documentUploadForm.grade);
+    formData.append("subject_id", documentUploadForm.subject_id);
+    formData.append("file", documentUploadForm.file);
+
+    setDocumentUploading(true);
+    setDocumentUploadError("");
+
+    try {
+      await apiFetch("/documents/create_document", {
+        method: "POST",
+        body: formData
+      });
+      setDocumentUploadOpen(false);
+      await loadResource("documents", { page: 1 });
+      showToast("Đã upload tài liệu.");
+    } catch (error) {
+      setDocumentUploadError(error.message || "Không thể upload tài liệu.");
+    } finally {
+      setDocumentUploading(false);
+    }
   }
 
   function updateCreateForm(patch) {
@@ -477,11 +545,17 @@ export default function Admin() {
         ))}
       </div>
 
-      {(activeTab === "exams" || activeTab === "questions") && (
+      {(activeTab === "documents" || activeTab === "exams" || activeTab === "questions") && (
         <div className="admin-toolbar admin-toolbar-actions">
-          <button className="btn-primary" type="button" onClick={handleOpenCreateModal}>
-            Tạo mới {activeConfig.label.slice(0, -1).toLowerCase()}
-          </button>
+          {activeTab === "documents" ? (
+            <button className="btn-primary" type="button" onClick={handleOpenDocumentUpload}>
+              Upload tài liệu
+            </button>
+          ) : (
+            <button className="btn-primary" type="button" onClick={handleOpenCreateModal}>
+              Tạo mới {activeConfig.label.slice(0, -1).toLowerCase()}
+            </button>
+          )}
           {activeTab === "exams" && (
             <>
               <button className="btn-secondary" type="button" onClick={handleDownloadExamCsvTemplate}>
@@ -504,85 +578,78 @@ export default function Admin() {
       {activeTab === "exams" && csvError && <div className="form-error">{csvError}</div>}
 
       <form className="admin-filters" onSubmit={handleSearch}>
-        <div className="admin-filter-block">
-          <div className="admin-filter-label">Tìm kiếm nhanh</div>
-          <input
-            className="class-selector admin-search-input"
-            value={activeState.keyword}
-            onChange={(event) => handleFieldChange("keyword", event.target.value)}
-            placeholder={
-              activeTab === "users"
-                ? "Tìm theo tên, username, email..."
-                : activeTab === "news"
-                ? "Tìm theo tiêu đề tin..."
-                : activeTab === "documents"
-                ? "Tìm theo tiêu đề tài liệu..."
-                : activeTab === "exams"
-                ? "Tìm theo tiêu đề đề thi..."
-                : "Tìm theo nội dung câu hỏi..."
-            }
-          />
-        </div>
+        <input
+          aria-label="Tìm kiếm nhanh"
+          className="class-selector admin-search-input"
+          value={activeState.keyword}
+          onChange={(event) => handleFieldChange("keyword", event.target.value)}
+          placeholder={
+            activeTab === "users"
+              ? "Tên, username, email..."
+              : activeTab === "news"
+              ? "Tiêu đề tin..."
+              : activeTab === "documents"
+              ? "Tiêu đề tài liệu..."
+              : activeTab === "exams"
+              ? "Tiêu đề đề thi..."
+              : "Nội dung câu hỏi..."
+          }
+        />
 
-        <div className="admin-filter-grid">
-          {activeTab === "users" && (
-            <label className="admin-field">
-              <span>Vai trò</span>
-              <select className="class-selector" value={activeState.role} onChange={(event) => handleFieldChange("role", event.target.value)}>
-                <option value="">Tất cả role</option>
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-          )}
+        {["users", "documents", "exams", "questions"].includes(activeTab) && (
+          <select
+            aria-label="Lọc theo lớp"
+            className="class-selector admin-filter-control"
+            value={activeState.grade}
+            onChange={(event) => handleFieldChange("grade", event.target.value)}
+          >
+            <option value="">Tất cả lớp</option>
+            <option value="10">Lớp 10</option>
+            <option value="11">Lớp 11</option>
+            <option value="12">Lớp 12</option>
+          </select>
+        )}
 
-          {["users", "documents", "exams", "questions"].includes(activeTab) && (
-            <label className="admin-field">
-              <span>Lớp</span>
-              <select className="class-selector" value={activeState.grade} onChange={(event) => handleFieldChange("grade", event.target.value)}>
-                <option value="">Tất cả lớp</option>
-                <option value="10">Lớp 10</option>
-                <option value="11">Lớp 11</option>
-                <option value="12">Lớp 12</option>
-              </select>
-            </label>
-          )}
+        {["documents", "exams", "questions"].includes(activeTab) && (
+          <select
+            aria-label="Lọc theo môn học"
+            className="class-selector admin-filter-control"
+            value={activeState.subject_id}
+            onChange={(event) => handleFieldChange("subject_id", event.target.value)}
+          >
+            <option value="">Tất cả môn</option>
+            {subjects.map((subject) => (
+              <option key={subject.subject_id} value={subject.subject_id}>
+                {subject.subject_name}
+              </option>
+            ))}
+          </select>
+        )}
 
-          {["documents", "exams", "questions"].includes(activeTab) && (
-            <label className="admin-field">
-              <span>Môn học</span>
-              <select className="class-selector" value={activeState.subject_id} onChange={(event) => handleFieldChange("subject_id", event.target.value)}>
-                <option value="">Tất cả môn</option>
-                <option value="1">Môn 1</option>
-                <option value="2">Môn 2</option>
-                <option value="3">Môn 3</option>
-              </select>
-            </label>
-          )}
+        <select
+          aria-label="Sắp xếp theo"
+          className="class-selector admin-filter-control"
+          value={activeState.sort_by}
+          onChange={(event) => handleFieldChange("sort_by", event.target.value)}
+        >
+          {activeConfig.sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
 
-          <label className="admin-field">
-            <span>Sắp xếp theo</span>
-            <select className="class-selector" value={activeState.sort_by} onChange={(event) => handleFieldChange("sort_by", event.target.value)}>
-              {activeConfig.sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="admin-field">
-            <span>Thứ tự</span>
-            <select className="class-selector" value={activeState.sort_order} onChange={(event) => handleFieldChange("sort_order", event.target.value)}>
-              <option value="asc">Tăng dần</option>
-              <option value="desc">Giảm dần</option>
-            </select>
-          </label>
-        </div>
+        <select
+          aria-label="Thứ tự sắp xếp"
+          className="class-selector admin-filter-control"
+          value={activeState.sort_order}
+          onChange={(event) => handleFieldChange("sort_order", event.target.value)}
+        >
+          <option value="asc">Tăng dần</option>
+          <option value="desc">Giảm dần</option>
+        </select>
 
         <div className="admin-filter-actions">
           <button className="btn-primary" type="submit">Áp dụng</button>
           <button className="btn-secondary" type="button" onClick={clearFilters}>Xóa lọc</button>
-          <button className="btn-secondary" type="button" onClick={() => loadResource(activeTab)}>Tải lại</button>
         </div>
       </form>
 
@@ -618,6 +685,74 @@ export default function Admin() {
         </button>
       </div>
 
+      {documentUploadOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={handleCloseDocumentUpload}>
+          <div className="modal-card admin-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Upload tài liệu mới</h3>
+              <button className="btn-secondary" type="button" onClick={handleCloseDocumentUpload}>Đóng</button>
+            </div>
+
+            <form className="modal-body" onSubmit={handleDocumentUploadSubmit}>
+              <label>
+                <span>Tiêu đề</span>
+                <input
+                  required
+                  placeholder="Nhập tiêu đề tài liệu"
+                  value={documentUploadForm.title}
+                  onChange={(event) => setDocumentUploadForm((current) => ({ ...current, title: event.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>Môn học</span>
+                <select
+                  className="class-selector"
+                  required
+                  value={documentUploadForm.subject_id}
+                  onChange={(event) => setDocumentUploadForm((current) => ({ ...current, subject_id: event.target.value }))}
+                >
+                  <option value="">Chọn môn học</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.subject_id} value={subject.subject_id}>
+                      {subject.subject_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Lớp</span>
+                <select
+                  className="class-selector"
+                  value={documentUploadForm.grade}
+                  onChange={(event) => setDocumentUploadForm((current) => ({ ...current, grade: event.target.value }))}
+                >
+                  <option value="10">Lớp 10</option>
+                  <option value="11">Lớp 11</option>
+                  <option value="12">Lớp 12</option>
+                </select>
+              </label>
+
+              <label>
+                <span>File tài liệu</span>
+                <input
+                  required
+                  accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  type="file"
+                  onChange={(event) => setDocumentUploadForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
+                />
+              </label>
+
+              {documentUploadError && <div className="form-error">{documentUploadError}</div>}
+              <button className="btn-primary" type="submit" disabled={documentUploading}>
+                {documentUploading ? "Đang upload..." : "Upload tài liệu"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {createModalOpen && (
         <div className="modal-backdrop" role="presentation" onClick={handleCloseCreateModal}>
           <div className="modal-card admin-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -630,7 +765,14 @@ export default function Admin() {
               {activeTab === "exams" ? (
                 <>
                   <input placeholder="Tiêu đề" value={createForm.title} onChange={(e) => updateCreateForm({ title: e.target.value })} />
-                  <input placeholder="Subject ID" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })} />
+                  <select className="class-selector" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })}>
+                    <option value="">Chọn môn học</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.subject_id} value={subject.subject_id}>
+                        {subject.subject_name}
+                      </option>
+                    ))}
+                  </select>
                   <select className="class-selector" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })}>
                     <option value="10">Lớp 10</option>
                     <option value="11">Lớp 11</option>
@@ -661,7 +803,14 @@ export default function Admin() {
               ) : (
                 <>
                   <input placeholder="Nội dung câu hỏi" value={createForm.content} onChange={(e) => updateCreateForm({ content: e.target.value })} />
-                  <input placeholder="Subject ID" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })} />
+                  <select className="class-selector" value={createForm.subject_id} onChange={(e) => updateCreateForm({ subject_id: e.target.value })}>
+                    <option value="">Chọn môn học</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.subject_id} value={subject.subject_id}>
+                        {subject.subject_name}
+                      </option>
+                    ))}
+                  </select>
                   <input placeholder="Grade" value={createForm.grade} onChange={(e) => updateCreateForm({ grade: e.target.value })} />
                   <input placeholder="Giải thích" value={createForm.explanation} onChange={(e) => updateCreateForm({ explanation: e.target.value })} />
                   {createForm.QuestionOptions.map((option, optionIndex) => (
