@@ -1,6 +1,5 @@
 import os
 import uuid
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, update
@@ -149,3 +148,37 @@ def upload_avatar(file, db, current_user):
     )
     db.commit()
     return {"message": "Avatar uploaded successfully", "avatar_url": avatar_url}
+
+def get_scoreboard(db, user_id: int, subject_id: Optional[int], page:int, limit:int):
+    query = db.query(Result).join(Exam, Result.exam_id == Exam.exam_id)\
+                            .join(Subject, Exam.subject_id == Subject.subject_id)\
+                            .filter(Result.user_id == user_id)
+    
+    #neu insert subject_id thi loc them subject_id
+    if subject_id is not None:
+        query = query.filter(Subject.subject_id == subject_id)
+
+    total = query.count()
+    offset = (page - 1) * limit
+    results = query.order_by(Result.score.desc(), Result.submitted_at.desc()).offset(offset).limit(limit).all()
+
+    items = []
+    for index, r in enumerate(results): #enumerate de lay index cua tung phan tu trong list results
+        items.append({
+            "rank": offset + index + 1,
+            "result_uuid": r.uuid,
+            "exam_uuid": r.exam.uuid,
+            "exam_title": r.exam.title,
+            "subject_name": r.exam.subject.subject_name,
+            "score": r.score,
+            "total_question": r.exam.question_number,
+            "time_spent": r.time_spent,
+            "submitted_at": r.submitted_at
+        })
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "items": items
+    }

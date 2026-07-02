@@ -6,7 +6,7 @@ from app.dependencies.auth_dependency import get_current_user
 from app.dependencies.db_dependency import get_db
 from app.models.user_model import User
 from app.schemas.me_schema import (
-    UserMeResponse, UpdateMeRequest, HistoryListResponse
+    ScoreBoardListResponse, UserMeResponse, UpdateMeRequest, HistoryListResponse
 )
 from app.services import me_service
 
@@ -44,3 +44,20 @@ def upload_avatar(
     current_user: User = Depends(get_current_user)
 ):
     return me_service.upload_avatar(file, db, current_user)
+
+@router.get("/scoreboard", response_model=ScoreBoardListResponse)
+def get_scoreboard(
+    subject_id: Optional[int] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """GET /v1/me/scoreboard - Xem bảng xếp hạng theo môn học"""
+    return me_service.get_scoreboard(
+        db=db,
+        user_id = current_user.user_id,
+        subject_id = subject_id,
+        page = page,
+        limit = limit
+    )

@@ -35,12 +35,14 @@ async def submit_exam(db, data, current_user, redis_client):
 
             if correct_option_id == ans.selected_option_id:
                 correct_count += 1
+            
+    score = round((correct_count / total_question) * 10, 2) if total_question > 0 else 0
 
     # Luu ket qua bai thi
     exam_result = Result(
         user_id = current_user.user_id,
         exam_id = exam_id,
-        score = correct_count,
+        score = score,
         time_spent = data.time_spent
     )
 
