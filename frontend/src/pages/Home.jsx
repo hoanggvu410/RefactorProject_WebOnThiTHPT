@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import DataTable from "../components/DataTable.jsx";
+import ScoreBoardTable from "../components/ScoreBoardTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import SubjectGrid from "../components/SubjectGrid.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoExams, demoNews } from "../data.js";
 
 export default function Home() {
-  const { apiFetch } = useAuth();
+  const { apiFetch, isLoggedIn } = useAuth();
   const [news, setNews] = useState([]);
   const [exams, setExams] = useState([]);
 
@@ -44,6 +45,15 @@ export default function Home() {
           emptyText="Chưa có tin tức."
         />
       </div>
+
+      {isLoggedIn && (
+        <section className="logged-in-only">
+          <SectionTitle>📊 Bảng xếp hạng của bạn</SectionTitle>
+          <div className="content-box">
+            <ScoreBoardTable apiFetch={apiFetch} limit={10} fallback />
+          </div>
+        </section>
+      )}
 
       <SectionTitle>📚 Các môn học</SectionTitle>
       <SubjectGrid expandable limit={8} />
