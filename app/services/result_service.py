@@ -77,19 +77,33 @@ def review_result(result_uuid, db, current_user):
     if result.user_id != current_user.user_id:
         raise HTTPException(403, {"code": "PERMISSION_DENIED", "message": "Permission denied"})
 
-    answers_by_question_id = {
-        answer.question_id: answer for answer in result.user_answers
-    }
+    answers_by_question_id = {}
+    for answer in result.user_answers:
+        question_id = getattr(answer, "question_id", None)
+        if question_id is None and getattr(answer, "question", None):
+            question_id = answer.question.question_id
+        answers_by_question_id[question_id] = answer
+
+    questions = getattr(result.exam, "questions", None)
+    if questions is None:
+        questions = [
+            answer.question for answer in result.user_answers
+            if getattr(answer, "question", None)
+        ]
     
     #duyet qua toan bo cau hoi trong bai thi va lay dap an dung tu db
     review_questions = []
-    for question in result.exam.questions:
+    for question in questions:
         correct_answer = db.query(QuestionOption).filter(
             QuestionOption.question_id == question.question_id,
             QuestionOption.is_correct == True
         ).first()
         if not correct_answer:
             raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
+
+        selected_answer = answers_by_question_id.get(question.question_id)
+        selected_option_id = selected_answer.selected_option_id if selected_answer else None
+
         review_questions.append(ReviewQuestionResponse(
             questionID=question.question_id,
             question_uuid=question.uuid,
@@ -101,7 +115,7 @@ def review_result(result_uuid, db, current_user):
                 selected_option_id == correct_answer.question_option_id
                 if selected_option_id is not None else None
             ),
-            explanation=question.explanation
+            explanation=getattr(question, "explanation", None)
         ))
     
     return ReviewResultResponse(

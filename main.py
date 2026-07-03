@@ -118,7 +118,10 @@ def create_app() -> FastAPI:
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+    upload_dir = Path(settings.UPLOAD_DIR)
+    if upload_dir.exists():
+        app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
     if FRONTEND_DIST_DIR.exists():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")

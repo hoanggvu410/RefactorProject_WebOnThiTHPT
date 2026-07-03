@@ -60,6 +60,9 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Run migrations
+        env:
+          SUPABASE_URL: "https://your-project.supabase.co" # Điền giá trị dummy nếu db test không dùng đến
+          SUPABASE_SERVICE_ROLE_KEY: "your-dummy-key"
         run: |
           alembic upgrade head
 
