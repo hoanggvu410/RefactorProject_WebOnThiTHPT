@@ -139,12 +139,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],             # Cho phép truyền mọi loại Header (ví dụ: Token đăng nhập)
     )
 
-    @app.get("/")
-    def serve_frontend():
-        if FRONTEND_DIST_DIR.exists():
-            return FileResponse(FRONTEND_DIST_DIR / "index.html")
-        return FileResponse(FRONTEND_DIR / "index.html")
-
     return app
 
 app = create_app()

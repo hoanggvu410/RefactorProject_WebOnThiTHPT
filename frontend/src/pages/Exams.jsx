@@ -23,6 +23,31 @@ function formatTime(totalSeconds) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function getQuestionId(question) {
+  return question?.questionID ?? question?.question_id ?? question?.question_uuid ?? question?.uuid;
+}
+
+function getOptionId(option) {
+  return option?.questionoptionID ?? option?.question_option_id ?? option?.id;
+}
+
+function getSelectedOptionId(question) {
+  return question?.selectedOptionID ?? question?.selected_option_id ?? null;
+}
+
+function getCorrectOptionId(question) {
+  const correctOption = (question?.questionOptions || []).find((option) => option.is_correct || option.isCorrect);
+  return question?.correctOptionID
+    ?? question?.correct_option_id
+    ?? question?.correctOptionId
+    ?? getOptionId(correctOption)
+    ?? null;
+}
+
+function getQuestionCorrectState(question) {
+  return question?.is_correct ?? question?.isCorrect ?? null;
+}
+
 export default function Exams() {
   const { apiFetch, isLoggedIn } = useAuth();
   const [exams, setExams] = useState([]);
@@ -45,9 +70,36 @@ export default function Exams() {
   const [submitError, setSubmitError] = useState("");
   const [submitResult, setSubmitResult] = useState(null);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [openExplanations, setOpenExplanations] = useState({});
 
   const questions = activeExam?.questions || [];
-  const currentQuestion = questions[currentQuestionIndex];
+  const isReviewMode = Boolean(reviewData);
+  const displayQuestions = useMemo(() => {
+    if (!reviewData) return questions;
+
+    const reviewQuestions = reviewData.questions || [];
+    const reviewByQuestionId = new Map(
+      reviewQuestions.map((question) => [String(getQuestionId(question)), question])
+    );
+    const mergedQuestions = questions.map((question) => {
+      const reviewQuestion = reviewByQuestionId.get(String(getQuestionId(question)));
+      if (!reviewQuestion) return question;
+
+      return {
+        ...question,
+        ...reviewQuestion,
+        questionOptions: reviewQuestion.questionOptions || question.questionOptions || []
+      };
+    });
+    const knownQuestionIds = new Set(mergedQuestions.map((question) => String(getQuestionId(question))));
+    const extraReviewQuestions = reviewQuestions.filter((question) => !knownQuestionIds.has(String(getQuestionId(question))));
+
+    return [...mergedQuestions, ...extraReviewQuestions];
+  }, [questions, reviewData]);
+  const currentQuestion = displayQuestions[currentQuestionIndex];
 
   const answeredCount = useMemo(
     () => Object.values(answers).filter(Boolean).length,
@@ -148,9 +200,15 @@ export default function Exams() {
     setSubmitError("");
     setSubmitResult(null);
     setResultModalOpen(false);
+    setReviewData(null);
+    setReviewLoading(false);
+    setReviewError("");
+    setOpenExplanations({});
   }
 
   function handleSelectAnswer(optionId) {
+    if (submitResult || isReviewMode) return;
+
     setAnswers((current) => ({
       ...current,
       [currentQuestionIndex]: optionId
@@ -158,6 +216,8 @@ export default function Exams() {
   }
 
   function handleToggleMark(index) {
+    if (isReviewMode) return;
+
     setMarkedQuestions((current) => ({
       ...current,
       [index]: !current[index]
@@ -174,6 +234,10 @@ export default function Exams() {
     setSubmitError("");
     setSubmitResult(null);
     setResultModalOpen(false);
+    setReviewData(null);
+    setReviewLoading(false);
+    setReviewError("");
+    setOpenExplanations({});
   }
 
   async function handleSubmitExam() {
@@ -230,54 +294,126 @@ export default function Exams() {
     }
   }
 
+  async function handleStayReview() {
+    if (!submitResult?.result_uuid || reviewLoading) {
+      setResultModalOpen(false);
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError("");
+
+    try {
+      const payload = await apiFetch(`/results/review/${submitResult.result_uuid}`);
+      setReviewData(payload);
+      setCurrentQuestionIndex(0);
+      setResultModalOpen(false);
+    } catch (error) {
+      setReviewError(error.message || "Không tải được dữ liệu xem lại bài.");
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  function toggleExplanation(index) {
+    setOpenExplanations((current) => ({
+      ...current,
+      [index]: !current[index]
+    }));
+  }
+
   if (activeExam) {
+    const selectedOptionId = isReviewMode ? getSelectedOptionId(currentQuestion) : answers[currentQuestionIndex];
+    const correctOptionId = isReviewMode ? getCorrectOptionId(currentQuestion) : null;
+    const correctState = isReviewMode ? getQuestionCorrectState(currentQuestion) : null;
+    const displayCorrectOptionId = correctOptionId ?? (correctState === true ? selectedOptionId : null);
+    const currentQuestionCount = displayQuestions.length;
+
     return (
       <>
-        <SectionTitle>✏️ Làm bài thi</SectionTitle>
+        <SectionTitle>{isReviewMode ? "Xem kết quả" : "Làm bài thi"}</SectionTitle>
         <div className="exam-workspace">
           <section className="content-box exam-main-panel">
             <div className="exam-workspace-header">
               <div>
                 <h3>{activeExam.title}</h3>
                 <div className="review-meta">
-                  <span className="tag">Câu {currentQuestionIndex + 1}/{questions.length}</span>
+                  <span className="tag">Câu {currentQuestionIndex + 1}/{currentQuestionCount}</span>
                   <span className="tag">Đã làm {answeredCount}/{questions.length}</span>
+                  {isReviewMode && <span className="tag">Đang xem kết quả</span>}
                 </div>
               </div>
-              <div className={`exam-timer ${remainingSeconds <= 300 ? "danger" : ""}`}>
-                {formatTime(remainingSeconds)}
-              </div>
+              {isReviewMode ? (
+                <div className="exam-timer review">Đã nộp</div>
+              ) : (
+                <div className={`exam-timer ${remainingSeconds <= 300 ? "danger" : ""}`}>
+                  {formatTime(remainingSeconds)}
+                </div>
+              )}
             </div>
 
-            {questions.length === 0 ? (
+            {currentQuestionCount === 0 ? (
               <div className="empty">Đề thi này chưa có câu hỏi.</div>
             ) : (
               <>
                 <div className="question-card">
                   <div className="question-card-header">
                     <strong>Câu {currentQuestionIndex + 1}</strong>
-                    <button
-                      className={`btn-secondary btn-small ${markedQuestions[currentQuestionIndex] ? "marked" : ""}`}
-                      type="button"
-                      onClick={() => handleToggleMark(currentQuestionIndex)}
-                    >
-                      {markedQuestions[currentQuestionIndex] ? "Bỏ đánh dấu" : "Đánh dấu"}
-                    </button>
+                    {!isReviewMode && (
+                      <button
+                        className={`btn-secondary btn-small ${markedQuestions[currentQuestionIndex] ? "marked" : ""}`}
+                        type="button"
+                        onClick={() => handleToggleMark(currentQuestionIndex)}
+                      >
+                        {markedQuestions[currentQuestionIndex] ? "Bỏ đánh dấu" : "Đánh dấu"}
+                      </button>
+                    )}
                   </div>
                   <p>{currentQuestion.content}</p>
                   <div className="option-list">
-                    {(currentQuestion.questionOptions || []).map((option) => (
-                      <label className="option-row" key={option.questionoptionID || option.content}>
-                        <input
-                          checked={answers[currentQuestionIndex] === option.questionoptionID}
-                          name={`question-${currentQuestionIndex}`}
-                          type="radio"
-                          onChange={() => handleSelectAnswer(option.questionoptionID)}
-                        />
-                        <span>{option.content}</span>
-                      </label>
-                    ))}
+                    {(currentQuestion.questionOptions || []).map((option) => {
+                      const optionId = getOptionId(option);
+                      const isSelected = selectedOptionId === optionId;
+                      const isCorrectOption = isReviewMode && displayCorrectOptionId === optionId;
+                      const isWrongSelected = isReviewMode && isSelected && !isCorrectOption;
+
+                      return (
+                        <label
+                          className={[
+                            "option-row",
+                            isCorrectOption ? "correct" : "",
+                            isWrongSelected ? "wrong" : ""
+                          ].filter(Boolean).join(" ")}
+                          key={optionId || option.content}
+                        >
+                          <input
+                            checked={isSelected}
+                            disabled={isReviewMode || Boolean(submitResult)}
+                            name={`question-${currentQuestionIndex}`}
+                            type="radio"
+                            onChange={() => handleSelectAnswer(optionId)}
+                          />
+                          <span>{option.content}</span>
+                        </label>
+                      );
+                    })}
                   </div>
+                  {isReviewMode && (
+                    <div className="explanation-panel">
+                      <button
+                        className="explanation-toggle"
+                        type="button"
+                        onClick={() => toggleExplanation(currentQuestionIndex)}
+                      >
+                        {openExplanations[currentQuestionIndex] ? "Ẩn Giải thích" : "Giải thích"}
+                      </button>
+                      {openExplanations[currentQuestionIndex] && (
+                        <div className="explanation-content">
+                          {currentQuestion.explanation || "Chưa có giải thích cho câu hỏi này."}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="exam-actions">
@@ -292,8 +428,8 @@ export default function Exams() {
                   <button
                     className="btn-secondary"
                     type="button"
-                    disabled={currentQuestionIndex >= questions.length - 1}
-                    onClick={() => setCurrentQuestionIndex((index) => Math.min(questions.length - 1, index + 1))}
+                    disabled={currentQuestionIndex >= currentQuestionCount - 1}
+                    onClick={() => setCurrentQuestionIndex((index) => Math.min(currentQuestionCount - 1, index + 1))}
                   >
                     Câu sau
                   </button>
@@ -317,22 +453,38 @@ export default function Exams() {
           <aside className="content-box question-navigator">
             <h3>Danh sách câu hỏi</h3>
             <div className="navigator-legend">
-              <span><i className="legend-dot answered" /> Đã làm</span>
+              {isReviewMode ? (
+                <>
+                  <span><i className="legend-dot answered" /> Đúng</span>
+                  <span><i className="legend-dot wrong" /> Sai</span>
+                </>
+              ) : (
+                <span><i className="legend-dot answered" /> Đã làm</span>
+              )}
               <span><i className="legend-dot unanswered" /> Chưa làm</span>
-              <span><i className="legend-dot marked" /> Xem lại</span>
+              {!isReviewMode && <span><i className="legend-dot marked" /> Xem lại</span>}
             </div>
             <div className="question-grid">
-              {questions.map((question, index) => {
+              {displayQuestions.map((question, index) => {
                 const answered = Boolean(answers[index]);
                 const marked = Boolean(markedQuestions[index]);
+                const selected = getSelectedOptionId(question);
+                const correctState = getQuestionCorrectState(question);
+                const correctOption = getCorrectOptionId(question);
+                const reviewClass = !selected
+                  ? "unanswered"
+                  : correctState === true || (correctState === null && correctOption && selected === correctOption)
+                    ? "correct"
+                    : "wrong";
+
                 return (
                   <button
                     key={question.question_uuid || question.uuid || index}
                     className={[
                       "question-chip",
                       currentQuestionIndex === index ? "active" : "",
-                      answered ? "answered" : "unanswered",
-                      marked ? "marked" : ""
+                      isReviewMode ? reviewClass : answered ? "answered" : "unanswered",
+                      !isReviewMode && marked ? "marked" : ""
                     ].filter(Boolean).join(" ")}
                     type="button"
                     onClick={() => setCurrentQuestionIndex(index)}
@@ -368,9 +520,10 @@ export default function Exams() {
                 {submitResult.result_uuid && (
                   <p className="status-info">Result UUID: {submitResult.result_uuid}</p>
                 )}
+                {reviewError && <div className="form-error">{reviewError}</div>}
                 <div className="modal-actions">
-                  <button className="btn-secondary" type="button" onClick={() => setResultModalOpen(false)}>
-                    Ở lại xem bài
+                  <button className="btn-secondary" type="button" disabled={reviewLoading} onClick={handleStayReview}>
+                    {reviewLoading ? "Đang tải..." : "Ở lại xem kết quả"}
                   </button>
                   <button className="btn-primary" type="button" onClick={handleExitPractice}>
                     Thoát đề thi
