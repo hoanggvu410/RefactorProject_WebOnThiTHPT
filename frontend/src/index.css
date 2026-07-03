@@ -507,6 +507,14 @@ th {
   background: #e0e0e0;
 }
 
+.btn-secondary.danger {
+  color: #b42318;
+}
+
+.btn-secondary.danger:hover {
+  background: #fee4e2;
+}
+
 .nav-register-link {
   display: inline-flex;
   align-items: center;
@@ -525,6 +533,12 @@ button:disabled {
 .btn-secondary.marked {
   background: #fff3cd;
   color: #7a5200;
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .detail-header {

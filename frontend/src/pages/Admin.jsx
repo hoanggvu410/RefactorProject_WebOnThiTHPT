@@ -10,6 +10,131 @@ function renderValue(value) {
   return value;
 }
 
+function getRowUuid(row) {
+  return row?.uuid || row?.user_uuid || row?.news_uuid || row?.document_uuid || row?.exam_uuid || row?.question_uuid;
+}
+
+function getResourcePath(resourceKey, row) {
+  const uuid = getRowUuid(row);
+  if (!uuid) return "";
+  if (resourceKey === "exams") return `/exam/${uuid}`;
+  return `${resourceConfig[resourceKey].endpoint}${uuid}`;
+}
+
+function normalizeDateInput(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function createEditFormState(resourceKey, row) {
+  if (resourceKey === "users") {
+    return {
+      name: row?.name || "",
+      username: row?.username || "",
+      email: row?.email || "",
+      grade: row?.grade ? String(row.grade) : "10",
+      password: ""
+    };
+  }
+
+  if (resourceKey === "news") {
+    return {
+      title: row?.title || "",
+      content: row?.content || "",
+      date: normalizeDateInput(row?.date),
+      link: row?.link || ""
+    };
+  }
+
+  if (resourceKey === "documents") {
+    return {
+      title: row?.title || "",
+      grade: row?.grade ? String(row.grade) : "10",
+      subject_id: row?.subject_id ? String(row.subject_id) : ""
+    };
+  }
+
+  if (resourceKey === "exams") {
+    return {
+      title: row?.title || "",
+      subject_id: row?.subject_id ? String(row.subject_id) : "",
+      grade: row?.grade ? String(row.grade) : "10",
+      duration: row?.duration ? String(row.duration) : ""
+    };
+  }
+
+  if (resourceKey === "questions") {
+    const options = row?.questionOptions || row?.QuestionOptions || [];
+    return {
+      content: row?.content || "",
+      subject_id: row?.subject_id ? String(row.subject_id) : "",
+      grade: row?.grade ? String(row.grade) : "10",
+      explanation: row?.explanation || "",
+      QuestionOptions: options.length > 0
+        ? options.map((option) => ({
+            content: option.content || "",
+            is_correct: Boolean(option.is_correct)
+          }))
+        : [createQuestionOption(), createQuestionOption()]
+    };
+  }
+
+  return {};
+}
+
+function buildEditPayload(resourceKey, form) {
+  if (resourceKey === "users") {
+    return {
+      name: form.name.trim(),
+      username: form.username.trim(),
+      email: form.email.trim(),
+      grade: Number(form.grade),
+      password: form.password
+    };
+  }
+
+  if (resourceKey === "documents") {
+    return {
+      title: form.title.trim(),
+      grade: Number(form.grade),
+      subject_id: Number(form.subject_id)
+    };
+  }
+
+  if (resourceKey === "exams") {
+    return {
+      title: form.title.trim(),
+      subject_id: Number(form.subject_id),
+      grade: Number(form.grade),
+      duration: Number(form.duration)
+    };
+  }
+
+  if (resourceKey === "questions") {
+    return {
+      content: form.content.trim(),
+      subject_id: Number(form.subject_id),
+      grade: Number(form.grade),
+      explanation: form.explanation.trim(),
+      QuestionOptions: form.QuestionOptions.map((option) => ({
+        content: option.content.trim(),
+        is_correct: Boolean(option.is_correct)
+      }))
+    };
+  }
+
+  return {
+    title: form.title.trim(),
+    content: form.content.trim(),
+    date: form.date,
+    link: form.link.trim()
+  };
+}
+
+function getEditMethod(resourceKey) {
+  return resourceKey === "exams" || resourceKey === "questions" ? "PATCH" : "PUT";
+}
+
 const resourceConfig = {
   users: {
     label: "Users",
@@ -28,7 +153,8 @@ const resourceConfig = {
       { label: "Username", key: "username" },
       { label: "Email", key: "email" },
       { label: "Role", key: "role" },
-      { label: "Grade", key: "grade" }
+      { label: "Grade", key: "grade" },
+      { label: "Status", render: (row) => row.is_active === false ? "Khóa" : "Hoạt động" }
     ]
   },
   news: {
@@ -216,6 +342,24 @@ export default function Admin() {
   const [documentUploadError, setDocumentUploadError] = useState("");
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvError, setCsvError] = useState("");
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminStatsError, setAdminStatsError] = useState("");
+  const [detailModal, setDetailModal] = useState({
+    open: false,
+    loading: false,
+    error: "",
+    resourceKey: "",
+    item: null
+  });
+  const [editModal, setEditModal] = useState({
+    open: false,
+    loading: false,
+    error: "",
+    resourceKey: "",
+    item: null,
+    form: {}
+  });
+  const [actionLoading, setActionLoading] = useState("");
 
   const activeConfig = resourceConfig[activeTab];
   const activeState = resources[activeTab];
@@ -258,9 +402,22 @@ export default function Admin() {
     }
   }, [apiFetch, isAdmin, resources, updateResource]);
 
+  const loadAdminStats = useCallback(async () => {
+    if (!isAdmin) return;
+    setAdminStatsError("");
+    try {
+      const payload = await apiFetch("/users/stats");
+      setAdminStats(payload);
+    } catch (error) {
+      setAdminStatsError(error.message || "Không tải được thống kê admin.");
+      setAdminStats(null);
+    }
+  }, [apiFetch, isAdmin]);
+
   useEffect(() => {
     if (!isAdmin) return;
     tabs.forEach((tab) => loadResource(tab.key));
+    loadAdminStats();
   }, [isAdmin]);
 
   useEffect(() => {
@@ -285,11 +442,12 @@ export default function Admin() {
   }, [activeTab, isAdmin, loadResource, resources]);
 
   const stats = useMemo(() => ({
-    users: resources.users.total || resources.users.items.length,
-    news: resources.news.total || resources.news.items.length,
-    documents: resources.documents.total || resources.documents.items.length,
-    exams: resources.exams.total || resources.exams.items.length
-  }), [resources]);
+    users: adminStats?.total_users ?? resources.users.total ?? resources.users.items.length,
+    exams: adminStats?.total_exams ?? resources.exams.total ?? resources.exams.items.length,
+    questions: adminStats?.total_questions ?? resources.questions.total ?? resources.questions.items.length,
+    submissions: adminStats?.total_submissions ?? 0,
+    avgScore: adminStats?.avg_score_all_time ?? 0
+  }), [adminStats, resources]);
 
   if (!isAdmin) {
     return (
@@ -364,6 +522,203 @@ export default function Admin() {
     if (documentUploading) return;
     setDocumentUploadOpen(false);
     setDocumentUploadError("");
+  }
+
+  function closeDetailModal() {
+    setDetailModal({
+      open: false,
+      loading: false,
+      error: "",
+      resourceKey: "",
+      item: null
+    });
+  }
+
+  function closeEditModal() {
+    if (editModal.loading) return;
+    setEditModal({
+      open: false,
+      loading: false,
+      error: "",
+      resourceKey: "",
+      item: null,
+      form: {}
+    });
+  }
+
+  async function handleViewUser(row) {
+    setDetailModal({
+      open: true,
+      loading: true,
+      error: "",
+      resourceKey: "users",
+      item: row
+    });
+
+    try {
+      const payload = await apiFetch(getResourcePath("users", row));
+      setDetailModal({
+        open: true,
+        loading: false,
+        error: "",
+        resourceKey: "users",
+        item: payload
+      });
+    } catch (error) {
+      setDetailModal((current) => ({
+        ...current,
+        loading: false,
+        error: error.message || "Không tải được chi tiết user."
+      }));
+    }
+  }
+
+  async function handleOpenEditModal(resourceKey, row) {
+    setEditModal({
+      open: true,
+      loading: resourceKey === "questions",
+      error: "",
+      resourceKey,
+      item: row,
+      form: createEditFormState(resourceKey, row)
+    });
+
+    if (resourceKey !== "questions") return;
+
+    try {
+      const payload = await apiFetch(getResourcePath(resourceKey, row));
+      const merged = { ...row, ...payload };
+      setEditModal({
+        open: true,
+        loading: false,
+        error: "",
+        resourceKey,
+        item: merged,
+        form: createEditFormState(resourceKey, merged)
+      });
+    } catch (error) {
+      setEditModal((current) => ({
+        ...current,
+        loading: false,
+        error: error.message || "Không tải được chi tiết câu hỏi."
+      }));
+    }
+  }
+
+  function updateEditForm(patch) {
+    setEditModal((current) => ({
+      ...current,
+      form: { ...current.form, ...patch }
+    }));
+  }
+
+  function updateEditQuestionOption(optionIndex, patch) {
+    setEditModal((current) => ({
+      ...current,
+      form: {
+        ...current.form,
+        QuestionOptions: (current.form.QuestionOptions || []).map((option, index) => (
+          index === optionIndex ? { ...option, ...patch } : option
+        ))
+      }
+    }));
+  }
+
+  function addEditQuestionOption() {
+    setEditModal((current) => ({
+      ...current,
+      form: {
+        ...current.form,
+        QuestionOptions: [...(current.form.QuestionOptions || []), createQuestionOption()]
+      }
+    }));
+  }
+
+  function removeEditQuestionOption(optionIndex) {
+    setEditModal((current) => ({
+      ...current,
+      form: {
+        ...current.form,
+        QuestionOptions: (current.form.QuestionOptions || []).filter((_, index) => index !== optionIndex)
+      }
+    }));
+  }
+
+  async function handleEditSubmit(event) {
+    event.preventDefault();
+    if (!editModal.resourceKey || !editModal.item) return;
+
+    const { resourceKey, item, form } = editModal;
+    setEditModal((current) => ({ ...current, loading: true, error: "" }));
+
+    try {
+      await apiFetch(getResourcePath(resourceKey, item), {
+        method: getEditMethod(resourceKey),
+        body: JSON.stringify(buildEditPayload(resourceKey, form))
+      });
+      setEditModal({
+        open: false,
+        loading: false,
+        error: "",
+        resourceKey: "",
+        item: null,
+        form: {}
+      });
+      await loadResource(resourceKey);
+      if (resourceKey === "users" || resourceKey === "questions") await loadAdminStats();
+      showToast("Đã cập nhật dữ liệu.");
+    } catch (error) {
+      setEditModal((current) => ({
+        ...current,
+        loading: false,
+        error: error.message || "Không thể cập nhật dữ liệu."
+      }));
+    }
+  }
+
+  async function handleToggleUserActive(row) {
+    const uuid = getRowUuid(row);
+    if (!uuid) return;
+
+    const nextActive = row.is_active === false;
+    const label = `${uuid}:active`;
+    setActionLoading(label);
+
+    try {
+      await apiFetch(`/users/${uuid}/is-active`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: nextActive })
+      });
+      await loadResource("users");
+      await loadAdminStats();
+      showToast(nextActive ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.");
+    } catch (error) {
+      showToast(error.message || "Không thể cập nhật trạng thái tài khoản.");
+    } finally {
+      setActionLoading("");
+    }
+  }
+
+  async function handleDeleteResource(resourceKey, row) {
+    const uuid = getRowUuid(row);
+    if (!uuid) return;
+
+    const confirmed = window.confirm("Bạn chắc chắn muốn xóa mục này?");
+    if (!confirmed) return;
+
+    const label = `${resourceKey}:${uuid}:delete`;
+    setActionLoading(label);
+
+    try {
+      await apiFetch(getResourcePath(resourceKey, row), { method: "DELETE" });
+      await loadResource(resourceKey);
+      if (resourceKey === "users" || resourceKey === "exams" || resourceKey === "questions") await loadAdminStats();
+      showToast("Đã xóa dữ liệu.");
+    } catch (error) {
+      showToast(error.message || "Không thể xóa dữ liệu.");
+    } finally {
+      setActionLoading("");
+    }
   }
 
   async function handleDocumentUploadSubmit(event) {
@@ -521,16 +876,238 @@ export default function Admin() {
     loadResource(activeTab, { page: nextPage });
   }
 
+  function renderRowActions(resourceKey, row) {
+    const uuid = getRowUuid(row);
+    const deleteLoading = actionLoading === `${resourceKey}:${uuid}:delete`;
+    const activeLoading = actionLoading === `${uuid}:active`;
+
+    return (
+      <div className="admin-row-actions">
+        {resourceKey === "users" && (
+          <>
+            <button className="btn-secondary btn-small" type="button" onClick={() => handleViewUser(row)}>
+              Xem
+            </button>
+            <button
+              className="btn-secondary btn-small"
+              type="button"
+              disabled={activeLoading}
+              onClick={() => handleToggleUserActive(row)}
+            >
+              {row.is_active === false ? "Mở khóa" : "Khóa"}
+            </button>
+          </>
+        )}
+        <button className="btn-secondary btn-small" type="button" onClick={() => handleOpenEditModal(resourceKey, row)}>
+          Sửa
+        </button>
+        <button
+          className="btn-secondary btn-small danger"
+          type="button"
+          disabled={deleteLoading}
+          onClick={() => handleDeleteResource(resourceKey, row)}
+        >
+          Xóa
+        </button>
+      </div>
+    );
+  }
+
+  function renderEditFields() {
+    const { resourceKey, form } = editModal;
+
+    if (resourceKey === "users") {
+      return (
+        <>
+          <label>
+            <span>Họ tên</span>
+            <input required value={form.name || ""} onChange={(event) => updateEditForm({ name: event.target.value })} />
+          </label>
+          <label>
+            <span>Username</span>
+            <input required value={form.username || ""} onChange={(event) => updateEditForm({ username: event.target.value })} />
+          </label>
+          <label>
+            <span>Email</span>
+            <input required type="email" value={form.email || ""} onChange={(event) => updateEditForm({ email: event.target.value })} />
+          </label>
+          <label>
+            <span>Lớp</span>
+            <select className="class-selector" value={form.grade || "10"} onChange={(event) => updateEditForm({ grade: event.target.value })}>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </label>
+          <label>
+            <span>Mật khẩu mới</span>
+            <input required minLength={6} type="password" value={form.password || ""} onChange={(event) => updateEditForm({ password: event.target.value })} />
+          </label>
+        </>
+      );
+    }
+
+    if (resourceKey === "news") {
+      return (
+        <>
+          <label>
+            <span>Tiêu đề</span>
+            <input required value={form.title || ""} onChange={(event) => updateEditForm({ title: event.target.value })} />
+          </label>
+          <label>
+            <span>Nội dung</span>
+            <textarea required value={form.content || ""} onChange={(event) => updateEditForm({ content: event.target.value })} />
+          </label>
+          <label>
+            <span>Ngày</span>
+            <input required type="date" value={form.date || ""} onChange={(event) => updateEditForm({ date: event.target.value })} />
+          </label>
+          <label>
+            <span>Link</span>
+            <input required value={form.link || ""} onChange={(event) => updateEditForm({ link: event.target.value })} />
+          </label>
+        </>
+      );
+    }
+
+    if (resourceKey === "documents") {
+      return (
+        <>
+          <label>
+            <span>Tiêu đề</span>
+            <input required value={form.title || ""} onChange={(event) => updateEditForm({ title: event.target.value })} />
+          </label>
+          <label>
+            <span>Môn học</span>
+            <select className="class-selector" required value={form.subject_id || ""} onChange={(event) => updateEditForm({ subject_id: event.target.value })}>
+              <option value="">Chọn môn học</option>
+              {subjects.map((subject) => (
+                <option key={subject.subject_id} value={subject.subject_id}>{subject.subject_name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Lớp</span>
+            <select className="class-selector" value={form.grade || "10"} onChange={(event) => updateEditForm({ grade: event.target.value })}>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </label>
+        </>
+      );
+    }
+
+    if (resourceKey === "exams") {
+      return (
+        <>
+          <label>
+            <span>Tiêu đề</span>
+            <input required value={form.title || ""} onChange={(event) => updateEditForm({ title: event.target.value })} />
+          </label>
+          <label>
+            <span>Môn học</span>
+            <select className="class-selector" required value={form.subject_id || ""} onChange={(event) => updateEditForm({ subject_id: event.target.value })}>
+              <option value="">Chọn môn học</option>
+              {subjects.map((subject) => (
+                <option key={subject.subject_id} value={subject.subject_id}>{subject.subject_name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Lớp</span>
+            <select className="class-selector" value={form.grade || "10"} onChange={(event) => updateEditForm({ grade: event.target.value })}>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </label>
+          <label>
+            <span>Thời gian (phút)</span>
+            <input required min="1" type="number" value={form.duration || ""} onChange={(event) => updateEditForm({ duration: event.target.value })} />
+          </label>
+        </>
+      );
+    }
+
+    if (resourceKey === "questions") {
+      return (
+        <>
+          <label>
+            <span>Nội dung câu hỏi</span>
+            <textarea required value={form.content || ""} onChange={(event) => updateEditForm({ content: event.target.value })} />
+          </label>
+          <label>
+            <span>Môn học</span>
+            <select className="class-selector" required value={form.subject_id || ""} onChange={(event) => updateEditForm({ subject_id: event.target.value })}>
+              <option value="">Chọn môn học</option>
+              {subjects.map((subject) => (
+                <option key={subject.subject_id} value={subject.subject_id}>{subject.subject_name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Lớp</span>
+            <select className="class-selector" value={form.grade || "10"} onChange={(event) => updateEditForm({ grade: event.target.value })}>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </label>
+          <label>
+            <span>Giải thích</span>
+            <input value={form.explanation || ""} onChange={(event) => updateEditForm({ explanation: event.target.value })} />
+          </label>
+          <div className="create-section">
+            <strong>Đáp án</strong>
+            {(form.QuestionOptions || []).map((option, optionIndex) => (
+              <div key={optionIndex} className="create-option-row">
+                <input
+                  required
+                  placeholder={`Đáp án ${optionIndex + 1}`}
+                  value={option.content || ""}
+                  onChange={(event) => updateEditQuestionOption(optionIndex, { content: event.target.value })}
+                />
+                <label className="create-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(option.is_correct)}
+                    onChange={(event) => updateEditQuestionOption(optionIndex, { is_correct: event.target.checked })}
+                  /> Đúng
+                </label>
+                {(form.QuestionOptions || []).length > 2 && (
+                  <button className="btn-secondary btn-small danger" type="button" onClick={() => removeEditQuestionOption(optionIndex)}>
+                    Xóa đáp án
+                  </button>
+                )}
+              </div>
+            ))}
+            <button className="btn-secondary" type="button" onClick={addEditQuestionOption}>Thêm đáp án</button>
+          </div>
+        </>
+      );
+    }
+
+    return null;
+  }
+
+  const activeColumns = [
+    ...activeConfig.columns,
+    { label: "Actions", render: (row) => renderRowActions(activeTab, row) }
+  ];
+
   return (
     <>
       <SectionTitle>🛠️ Admin Dashboard</SectionTitle>
 
       <div className="admin-hero">
         <div className="admin-card"><div className="admin-card-label">Users</div><div className="admin-card-value">{stats.users}</div></div>
-        <div className="admin-card"><div className="admin-card-label">News</div><div className="admin-card-value">{stats.news}</div></div>
-        <div className="admin-card"><div className="admin-card-label">Documents</div><div className="admin-card-value">{stats.documents}</div></div>
         <div className="admin-card"><div className="admin-card-label">Exams</div><div className="admin-card-value">{stats.exams}</div></div>
+        <div className="admin-card"><div className="admin-card-label">Questions</div><div className="admin-card-value">{stats.questions}</div></div>
+        <div className="admin-card"><div className="admin-card-label">Submissions</div><div className="admin-card-value">{stats.submissions}</div></div>
+        <div className="admin-card"><div className="admin-card-label">Avg Score</div><div className="admin-card-value">{Number(stats.avgScore || 0).toFixed(1)}</div></div>
       </div>
+      {adminStatsError && <div className="status-info">Đang dùng thống kê tạm từ bảng vì không tải được `/users/stats`.</div>}
 
       <div className="admin-tabs">
         {tabs.map((tab) => (
@@ -659,7 +1236,7 @@ export default function Admin() {
         ) : activeState.error ? (
           <div className="empty">{activeConfig.label}: {activeState.error}</div>
         ) : (
-          <DataTable columns={activeConfig.columns} rows={activeState.items} emptyText="Chưa có dữ liệu." />
+          <DataTable columns={activeColumns} rows={activeState.items} emptyText="Chưa có dữ liệu." />
         )}
       </div>
 
@@ -684,6 +1261,60 @@ export default function Admin() {
           &gt;
         </button>
       </div>
+
+      {detailModal.open && (
+        <div className="modal-backdrop" role="presentation" onClick={closeDetailModal}>
+          <div className="modal-card admin-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Chi tiết user</h3>
+              <button className="btn-secondary" type="button" onClick={closeDetailModal}>Đóng</button>
+            </div>
+            <div className="modal-body">
+              {detailModal.loading ? (
+                <div className="empty">Đang tải chi tiết user...</div>
+              ) : detailModal.error ? (
+                <div className="form-error">{detailModal.error}</div>
+              ) : (
+                <div className="profile-info-grid">
+                  {Object.entries(detailModal.item || {}).map(([key, value]) => (
+                    <div className="profile-info-row" key={key}>
+                      <span>{key}</span>
+                      <strong>{renderValue(value)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editModal.open && (
+        <div className="modal-backdrop" role="presentation" onClick={closeEditModal}>
+          <div className="modal-card admin-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Sửa {resourceConfig[editModal.resourceKey]?.label || "dữ liệu"}</h3>
+              <button className="btn-secondary" type="button" onClick={closeEditModal}>Đóng</button>
+            </div>
+            <form className="modal-body" onSubmit={handleEditSubmit}>
+              {renderEditFields()}
+              {editModal.resourceKey === "exams" && (
+                <div className="status-info">Phần chỉnh sửa câu hỏi trong đề thi sẽ làm sau.</div>
+              )}
+              {editModal.resourceKey === "documents" && (
+                <div className="status-info">Form này chỉ sửa thông tin tài liệu, không thay file đã upload.</div>
+              )}
+              {editModal.resourceKey === "questions" && (
+                <div className="status-info">Cần ít nhất 2 đáp án và ít nhất 1 đáp án đúng.</div>
+              )}
+              {editModal.error && <div className="form-error">{editModal.error}</div>}
+              <button className="btn-primary" type="submit" disabled={editModal.loading}>
+                {editModal.loading ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {documentUploadOpen && (
         <div className="modal-backdrop" role="presentation" onClick={handleCloseDocumentUpload}>
