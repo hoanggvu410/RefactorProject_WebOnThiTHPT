@@ -25,6 +25,8 @@ jobs:
       GOOGLE_CLIENT_ID: test-google-client-id
       GOOGLE_CLIENT_SECRET: test-google-client-secret
       GOOGLE_REDIRECT_URI: http://localhost:8000/auth/google/callback
+      SUPABASE_URL: https://your-project.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: your-dummy-key
       RESEND_API_KEY: test-resend-api-key
       DEBUG: "true"
       HOST: 0.0.0.0
@@ -60,9 +62,6 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Run migrations
-        env:
-          SUPABASE_URL: "https://your-project.supabase.co" # Điền giá trị dummy nếu db test không dùng đến
-          SUPABASE_SERVICE_ROLE_KEY: "your-dummy-key"
         run: |
           alembic upgrade head
 
