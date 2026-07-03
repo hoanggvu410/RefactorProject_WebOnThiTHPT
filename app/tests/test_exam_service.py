@@ -96,3 +96,46 @@ async def test_get_public_exam_cached_not_found():
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["code"] == "EXAM_NOT_FOUND"
+
+def test_create_exam_uses_question_service_without_intermediate_commit(monkeypatch):
+    class FakeExam:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+            self.uuid = "exam-uuid"
+            self.questions = []
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(subject_id=1)
+    current_user = SimpleNamespace(user_id=1, uuid="user-uuid")
+    created_question = SimpleNamespace(question_id=1)
+    create_question_mock = MagicMock(return_value=created_question)
+
+    monkeypatch.setattr(exam_service, "Exam", FakeExam)
+    monkeypatch.setattr(exam_service, "create_question", create_question_mock)
+
+    exam_data = SimpleNamespace(
+        title="Math Exam",
+        subject_id=1,
+        grade=12,
+        duration=90,
+        questions=[
+            SimpleNamespace(
+                content="Question 1",
+                explanation="Because",
+                QuestionOptions=[
+                    {"content": "A", "is_correct": True},
+                    {"content": "B", "is_correct": False},
+                ],
+            )
+        ],
+    )
+
+    result = exam_service.create_exam(exam_data, db, current_user)
+
+    assert result["exam_uuid"] == "exam-uuid"
+    assert result["questionNumber"] == 1
+    create_question_mock.assert_called_once()
+    _, _, kwargs = create_question_mock.mock_calls[0]
+    assert kwargs["current_user"] is current_user
+    assert kwargs["commit"] is False
+    db.commit.assert_called_once()
