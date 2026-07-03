@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     @classmethod
     def parse_database_url(cls, value):
         if value is None or (isinstance(value, str) and not value.strip()):
-            return cls.DEFAULT_DATABASE_URL
+            return DEFAULT_DATABASE_URL
         return value
 
     model_config = ConfigDict(
