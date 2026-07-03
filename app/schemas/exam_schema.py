@@ -40,6 +40,12 @@ class CreateExam(BaseModel):
     duration: int
     questions: list[CreateQuestionForExam] = Field(...,min_length=1) #moi de co it nhat 1 cau hoi   
 
+class UpdateExam(BaseModel):
+    title: str | None = None
+    subject_id: int | None = None
+    grade: int | None = Field(default=None, ge=10, le=12)
+    duration: int | None = None
+
 class CreateExamResponse(BaseModel):
     exam_uuid: UUID
     title: str

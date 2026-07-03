@@ -1,3 +1,8 @@
+from sqlalchemy import func
+
+from app.models.exam_model import Exam
+from app.models.question_model import Question
+from app.models.result_model import Result
 from app.models.user_model import User
 
 
@@ -43,3 +48,32 @@ def get_users(params, db):
         "items": items,
         "page": params.page
     }
+
+def get_admin_stats(db):
+    total_users = db.query(func.count(User.user_id)).scalar() or 0
+    total_students = db.query(func.count(User.user_id)).filter(User.role == "student").scalar() or 0
+    total_teachers = db.query(func.count(User.user_id)).filter(User.role == "giáo viên").scalar() or 0
+    total_exams = db.query(func.count(Exam.exam_id)).scalar() or 0
+    total_questions = db.query(func.count(Question.question_id)).scalar() or 0
+    total_submissions = db.query(func.count(Result.result_id)).scalar() or 0
+    avg_score = db.query(func.avg(Result.score)).scalar()
+
+    return {
+        "total_users": total_users,
+        "total_students": total_students,
+        "total_teachers": total_teachers,
+        "total_exams": total_exams,
+        "total_questions": total_questions,
+        "total_submissions": total_submissions,
+        "avg_score_all_time": round(float(avg_score), 2) if avg_score is not None else 0.0
+    }
+
+def update_user_active_status(user_uuid, payload, db):
+    user = db.query(User).filter(User.uuid == user_uuid).first()
+    if not user:
+        return None
+
+    user.is_active = payload.is_active
+    db.commit()
+    db.refresh(user)
+    return user

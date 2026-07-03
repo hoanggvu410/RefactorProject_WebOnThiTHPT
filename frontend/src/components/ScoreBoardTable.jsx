@@ -33,7 +33,7 @@ export default function ScoreBoardTable({ apiFetch, limit = 10, fallback = false
       setError("");
 
       try {
-        const payload = await apiFetch(`/v1/me/scoreboard?page=1&limit=${limit}`);
+        const payload = await apiFetch(`/me/scoreboard?page=1&limit=${limit}`);
         setScoreboard(normalizeScoreBoardItems(payload));
       } catch (loadError) {
         if (fallback) {

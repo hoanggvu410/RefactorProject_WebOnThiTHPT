@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
   const refreshMe = useCallback(async () => {
     if (!token) return;
     try {
-      const profile = await authedApiFetch("/v1/me/");
+      const profile = await authedApiFetch("/me/");
       setMe(profile);
     } catch {
       setMe(null);

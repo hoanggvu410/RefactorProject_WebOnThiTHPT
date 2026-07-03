@@ -77,9 +77,13 @@ def review_result(result_uuid, db, current_user):
     if result.user_id != current_user.user_id:
         raise HTTPException(403, {"code": "PERMISSION_DENIED", "message": "Permission denied"})
 
+    answers_by_question_id = {
+        answer.question_id: answer for answer in result.user_answers
+    }
+    
+    #duyet qua toan bo cau hoi trong bai thi va lay dap an dung tu db
     review_questions = []
-    for answer in result.user_answers:
-        question = answer.question
+    for question in result.exam.questions:
         correct_answer = db.query(QuestionOption).filter(
             QuestionOption.question_id == question.question_id,
             QuestionOption.is_correct == True
@@ -91,8 +95,13 @@ def review_result(result_uuid, db, current_user):
             question_uuid=question.uuid,
             content=question.content,
             questionOptions=question.question_options,
-            is_correct=(answer.selected_option_id == correct_answer.question_option_id),
-            selectedOptionID=answer.selected_option_id
+            selectedOptionID=selected_option_id,
+            correctOptionID=correct_answer.question_option_id,
+            is_correct=(
+                selected_option_id == correct_answer.question_option_id
+                if selected_option_id is not None else None
+            ),
+            explanation=question.explanation
         ))
     
     return ReviewResultResponse(

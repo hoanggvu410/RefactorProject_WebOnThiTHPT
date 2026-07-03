@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable.jsx";
+import ScoreBoardTable from "../components/ScoreBoardTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -22,7 +23,7 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
       try {
-        const payload = await apiFetch("/v1/me/history?page=1&limit=100");
+        const payload = await apiFetch("/me/history?page=1&limit=100");
         setHistory(payload?.items || []);
       } catch (loadError) {
         setError(loadError.message || "Không tải được dashboard.");
@@ -59,8 +60,6 @@ export default function Dashboard() {
 
     return { total, best, average, averageTime, bySubject };
   }, [history]);
-
-  const recentHistory = history.slice(0, 5);
 
   return (
     <>
@@ -99,19 +98,9 @@ export default function Dashboard() {
             />
           </div>
 
-          <SectionTitle>Bài thi gần đây</SectionTitle>
+          <SectionTitle>Bảng xếp hạng của bạn</SectionTitle>
           <div className="content-box">
-            <DataTable
-              columns={[
-                { label: "Đề thi", key: "exam_title" },
-                { label: "Môn học", key: "subject_name" },
-                { label: "Điểm", render: (row) => formatScore(row.score) },
-                { label: "Đúng/Tổng", render: (row) => `${row.correct_count}/${row.total_question}` },
-                { label: "Thời gian", render: (row) => formatMinutes(row.time_spent) }
-              ]}
-              rows={recentHistory}
-              emptyText="Chưa có bài thi gần đây."
-            />
+            <ScoreBoardTable apiFetch={apiFetch} limit={10} />
           </div>
         </>
       )}

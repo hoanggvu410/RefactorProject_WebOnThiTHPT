@@ -37,6 +37,13 @@ class CreateQuestion(BaseModel):
     class config:
         from_attributes = True
 
+class UpdateQuestion(BaseModel):
+    content: str | None = None
+    grade: int | None = Field(default=None, ge=10, le=12)
+    subject_id: int | None = None
+    explanation: str | None = None
+    QuestionOptions: list[CreateQuestionOption] | None = Field(default=None, min_length=2)
+
 class CreateQuestionForExam(BaseModel):
     content: str
     explanation: str | None = None

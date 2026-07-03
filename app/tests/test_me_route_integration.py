@@ -23,7 +23,7 @@ def test_get_me_success(client):
     
     app.dependency_overrides[get_current_user] = override_current_user
 
-    response = client.get("/v1/me/")
+    response = client.get("/me/")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200

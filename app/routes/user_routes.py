@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.user_model import User
 from app.schemas.auth_schema import RegisterUser
 from app.dependencies.auth_dependency import require_roles
-from app.schemas.user_schema import UserQueryParams
+from app.schemas.user_schema import UpdateUserActiveStatus, UserQueryParams
 from app.services import user_service
 from app.services.auth_service import hash_password
 from app.dependencies.db_dependency import get_db
@@ -15,6 +15,10 @@ router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(requir
 @router.get("/")
 def get_users(params: UserQueryParams = Depends(), db: Session = Depends(get_db)):
     return user_service.get_users(params, db)
+
+@router.get("/stats")
+def get_admin_stats(db: Session = Depends(get_db)):
+    return user_service.get_admin_stats(db)
 
 @router.get("/{user_uuid}")
 def get_user(user_uuid: UUID, db: Session = Depends(get_db)):
@@ -35,6 +39,17 @@ def update_user(user_uuid: UUID, user: RegisterUser, db: Session = Depends(get_d
     u.grade = user.grade
     db.commit()
     return {"message": "User updated successfully"}
+
+@router.patch("/{user_uuid}/is-active")
+def update_user_active_status(user_uuid: UUID, payload: UpdateUserActiveStatus, db: Session = Depends(get_db)):
+    user = user_service.update_user_active_status(user_uuid, payload, db)
+    if not user:
+        raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
+    return {
+        "user_uuid": user.uuid,
+        "is_active": user.is_active,
+        "message": "User active status updated successfully"
+    }
 
 @router.delete("/{user_uuid}")
 def delete_user(user_uuid: UUID, db: Session = Depends(get_db)):

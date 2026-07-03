@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 from app.core.redis import get_redis
-from app.schemas.exam_schema import CreateExam, CreateExamResponse, ExamResponse, ImportExamCSVResponse
+from app.schemas.exam_schema import CreateExam, CreateExamResponse, ExamResponse, ImportExamCSVResponse, UpdateExam
 from app.dependencies.auth_dependency import require_roles
 from app.dependencies.db_dependency import get_db
 from app.schemas.exam_schema import ExamQueryParams
@@ -23,6 +23,14 @@ async def get_exam_by_uuid(exam_uuid: UUID, db: Session = Depends(get_db), redis
 @router.post("/create_exam", response_model=CreateExamResponse, dependencies=[Depends(require_roles("giáo viên", "admin"))])
 def create_exam(exam_data: CreateExam, db: Session = Depends(get_db), current_user= Depends(require_roles("giáo viên", "admin"))):
     return exam_service.create_exam(exam_data, db, current_user)
+
+@router.patch("/{exam_uuid}", dependencies=[Depends(require_roles("giáo viên", "admin"))])
+def update_exam(exam_uuid: UUID, exam_data: UpdateExam, db: Session = Depends(get_db)):
+    return exam_service.update_exam(exam_uuid, exam_data, db)
+
+@router.delete("/{exam_uuid}", dependencies=[Depends(require_roles("giáo viên", "admin"))])
+def delete_exam(exam_uuid: UUID, db: Session = Depends(get_db)):
+    return exam_service.delete_exam(exam_uuid, db)
 
 @router.post("/import_csv", response_model=ImportExamCSVResponse, dependencies=[Depends(require_roles("giáo viên", "admin"))])
 async def import_exam_csv(

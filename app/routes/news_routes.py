@@ -39,14 +39,14 @@ def create_news(news: CreateNews, db: Session = Depends(get_db), dependencies = 
     )
 
 @router.put("/{news_uuid}")
-def update_news(news_uuid: UUID, news: CreateNews, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
+def update_news(news_uuid: UUID, payload: CreateNews, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
     news = db.query(News).filter(News.uuid == news_uuid).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})
-    news.title = news.title
-    news.content = news.content
-    news.link = news.link
-    news.date = news.date
+    news.title = payload.title
+    news.content = payload.content
+    news.link = payload.link
+    news.date = payload.date
     db.commit()
     return {"message": "News updated successfully"}
 
@@ -58,4 +58,3 @@ def delete_news(news_uuid: UUID, db: Session = Depends(get_db), dependencies = D
     db.delete(news)
     db.commit()
     return {"message": "News deleted successfully"}
-

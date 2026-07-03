@@ -27,7 +27,7 @@ export default function History() {
       setLoading(true);
       setError("");
       try {
-        const payload = await apiFetch(`/v1/me/history?page=${page}&limit=${PAGE_SIZE}`);
+        const payload = await apiFetch(`/me/history?page=${page}&limit=${PAGE_SIZE}`);
         setItems(payload?.items || []);
         setTotal(payload?.total || 0);
       } catch (loadError) {

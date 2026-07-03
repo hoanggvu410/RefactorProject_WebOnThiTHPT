@@ -97,3 +97,45 @@ def create_question(question_data, db, current_user, commit : bool = True):
         if commit:
             db.rollback()
         raise 
+
+def update_question(question_uuid, question_data, db):
+    question = db.query(Question).filter(Question.uuid == question_uuid).first()
+    if not question:
+        raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
+
+    update_data = question_data.model_dump(exclude_unset=True)
+
+    if "subject_id" in update_data:
+        subject = db.query(Subject).filter(Subject.subject_id == update_data["subject_id"]).first()
+        if not subject:
+            raise HTTPException(404, {"code": "SUBJECT_NOT_FOUND", "message": "Subject not found"})
+
+    options = update_data.pop("QuestionOptions", None)
+
+    for field, value in update_data.items():
+        setattr(question, field, value)
+
+    if options is not None:
+        if not any(option["is_correct"] for option in options):
+            raise HTTPException(400, {"code": "QUESTION_INVALID_OPTIONS", "message": "Question must have a correct option"})
+
+        question.question_options.clear()
+        db.flush()
+        for option in options:
+            question.question_options.append(QuestionOption(
+                content=option["content"],
+                is_correct=option["is_correct"],
+            ))
+
+    db.commit()
+    db.refresh(question)
+    return question
+
+def delete_question(question_uuid, db):
+    question = db.query(Question).filter(Question.uuid == question_uuid).first()
+    if not question:
+        raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
+
+    db.delete(question)
+    db.commit()
+    return {"message": "Question deleted successfully"}

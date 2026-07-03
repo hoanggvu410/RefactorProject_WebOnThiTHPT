@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import ScoreBoardTable from "../components/ScoreBoardTable.jsx";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { resolveApiUrl } from "../services/api.js";
@@ -41,7 +40,7 @@ export default function Profile() {
     setError("");
 
     try {
-      await apiFetch("/v1/me/profile", {
+      await apiFetch("/me/profile", {
         method: "PATCH",
         body: JSON.stringify({
           name: form.name.trim(),
@@ -68,8 +67,8 @@ export default function Profile() {
     setError("");
 
     try {
-      await apiFetch("/v1/me/upload-avatar", {
-        method: "POST",
+      await apiFetch("/me/upload-avatar", {
+        method: "PATCH",
         body: formData
       });
       await refreshMe();
@@ -205,10 +204,6 @@ export default function Profile() {
         </section>
       </div>
 
-      <SectionTitle>Bảng xếp hạng của bạn</SectionTitle>
-      <div className="content-box">
-        <ScoreBoardTable apiFetch={apiFetch} limit={10} />
-      </div>
     </>
   );
 }

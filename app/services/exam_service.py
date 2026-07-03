@@ -103,6 +103,34 @@ def create_exam(exam_data, db, current_user):
         db.rollback()
         raise
 
+def update_exam(exam_uuid, exam_data, db):
+    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    if not exam:
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
+
+    update_data = exam_data.model_dump(exclude_unset=True)
+
+    if "subject_id" in update_data:
+        subject = db.query(Subject).filter(Subject.subject_id == update_data["subject_id"]).first()
+        if not subject:
+            raise HTTPException(404, {"code": "SUBJECT_NOT_FOUND", "message": "Subject not found"})
+
+    for field, value in update_data.items():
+        setattr(exam, field, value)
+
+    db.commit()
+    db.refresh(exam)
+    return {"message": "Exam updated successfully"}
+
+def delete_exam(exam_uuid, db):
+    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    if not exam:
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
+
+    db.delete(exam)
+    db.commit()
+    return {"message": "Exam deleted successfully"}
+
 def build_public_exam_payload(exam):
         return{
             "exam_uuid": str(exam.uuid),

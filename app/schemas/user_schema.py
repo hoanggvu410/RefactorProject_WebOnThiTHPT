@@ -11,3 +11,6 @@ class UserQueryParams(BaseModel):
     keyword: str | None = Query(None)
     sort_by: str = "user_id"
     sort_order: str = "asc"
+
+class UpdateUserActiveStatus(BaseModel):
+    is_active: bool
