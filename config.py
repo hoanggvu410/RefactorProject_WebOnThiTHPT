@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     DOCUMENT_ALLOWED_MIME_TYPES: set = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"}
     AVATAR_MAX_SIZE: int = 2 * 1024 * 1024  # 2MB
     DOCUMENT_MAX_SIZE: int = 10 * 1024 * 1024  # 10MB
+    UPLOAD_DIR: str = "uploads"
 
     #SMTP Server
     # smtp_host: str
