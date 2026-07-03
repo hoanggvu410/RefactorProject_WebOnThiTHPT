@@ -1,3 +1,5 @@
+from math import e
+
 from fastapi import HTTPException
 from app.models.exam_model import Exam
 from app.models.question_option_model import QuestionOption
@@ -77,22 +79,33 @@ def review_result(result_uuid, db, current_user):
     if result.user_id != current_user.user_id:
         raise HTTPException(403, {"code": "PERMISSION_DENIED", "message": "Permission denied"})
 
+    answers_by_question_id = {
+        answer.question_id: answer for answer in result.user_answers
+    }
+    
+    #duyet qua toan bo cau hoi trong bai thi va lay dap an dung tu db
     review_questions = []
-    for answer in result.user_answers:
-        question = answer.question
+    for question in result.exam.questions:
         correct_answer = db.query(QuestionOption).filter(
             QuestionOption.question_id == question.question_id,
             QuestionOption.is_correct == True
         ).first()
-        if not correct_answer:
-            raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
+
+        selected_answer = answers_by_question_id.get(question.question_id)
+        selected_option_id = selected_answer.selected_option_id if selected_answer else None
+
         review_questions.append(ReviewQuestionResponse(
             questionID=question.question_id,
             question_uuid=question.uuid,
             content=question.content,
             questionOptions=question.question_options,
-            is_correct=(answer.selected_option_id == correct_answer.question_option_id),
-            selectedOptionID=answer.selected_option_id
+            selectedOptionID=selected_option_id,
+            correctOptionID=correct_answer.question_option_id,
+            is_correct=(
+                selected_option_id == correct_answer.question_option_id
+                if selected_option_id is not None else None
+            ),
+            explanation=question.explanation
         ))
     
     return ReviewResultResponse(

@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int
 
     #cau hinh hang so he thong
-    UPLOAD_DIR: str = "uploads/"
     AVATAR_ALLOWED_EXTENSIONS: set = {"png", "jpg", "jpeg"}
     DOCUMENT_ALLOWED_EXTENSIONS: set = {"pdf", "docx", "txt"}
     AVATAR_ALLOWED_MIME_TYPES: set = {"image/png", "image/jpeg"}

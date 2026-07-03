@@ -15,8 +15,10 @@ class QuestionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class ReviewQuestionResponse(QuestionResponse):
-    is_correct: bool
-    selectedOptionID: int
+    is_correct: bool | None = None
+    selectedOptionID: int | None = None
+    correctOptionID: int 
+    explanation: str | None = None
 
 class QuestionQueryParams(BaseModel):
     page: int = Query(default=1, ge=1)

@@ -118,7 +118,6 @@ def create_app() -> FastAPI:
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
     if FRONTEND_DIST_DIR.exists():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")
@@ -135,12 +134,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],             # Cho phép dùng mọi phương thức (GET, POST, PUT, DELETE)
         allow_headers=["*"],             # Cho phép truyền mọi loại Header (ví dụ: Token đăng nhập)
     )
-
-    @app.get("/")
-    def serve_frontend():
-        if FRONTEND_DIST_DIR.exists():
-            return FileResponse(FRONTEND_DIST_DIR / "index.html")
-        return FileResponse(FRONTEND_DIR / "index.html")
 
     return app
 
