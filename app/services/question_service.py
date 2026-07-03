@@ -63,7 +63,7 @@ def get_creator_uuid(db, current_user):
         raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
     return user.uuid
 
-def create_question(question_data, db, current_user, commit : bool = True):
+def create_question(question_data, db, current_user, commit: bool = True, **_kwargs):
     subject = db.query(Subject).filter(Subject.subject_id == question_data.subject_id).first()
     if not subject:
         raise HTTPException(404, {"code": "SUBJECT_NOT_FOUND", "message": "Subject not found"})
