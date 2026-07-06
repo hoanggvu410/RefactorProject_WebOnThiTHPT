@@ -3,6 +3,8 @@ import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoExams } from "../data.js";
 
+const EXAM_DRAFT_PREFIX = "exam_draft:";
+
 function normalizeExamDetail(row, payload) {
   const detail = payload || {};
   return {
@@ -27,6 +29,15 @@ function getQuestionId(question) {
   return question?.questionID ?? question?.question_id ?? question?.question_uuid ?? question?.uuid;
 }
 
+function getQuestionKey(question) {
+  const questionId = getQuestionId(question);
+  return questionId == null ? "" : String(questionId);
+}
+
+function getExamUuid(exam) {
+  return exam?.exam_uuid || exam?.uuid || exam?.exam_id || "";
+}
+
 function getOptionId(option) {
   return option?.questionoptionID ?? option?.question_option_id ?? option?.id;
 }
@@ -48,6 +59,88 @@ function getQuestionCorrectState(question) {
   return question?.is_correct ?? question?.isCorrect ?? null;
 }
 
+function getDraftKey(examUuid) {
+  return `${EXAM_DRAFT_PREFIX}${examUuid}`;
+}
+
+function readExamDraftByKey(key) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft?.exam || !draft?.deadlineAt) return null;
+    return { ...draft, storageKey: key };
+  } catch {
+    return null;
+  }
+}
+
+function readExamDraft(examUuid) {
+  if (!examUuid) return null;
+  return readExamDraftByKey(getDraftKey(examUuid));
+}
+
+function removeExamDraftByKey(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures; the live exam state should keep working.
+  }
+}
+
+function removeExamDraft(examUuid) {
+  if (!examUuid) return;
+  removeExamDraftByKey(getDraftKey(examUuid));
+}
+
+function isDraftExpired(draft, now = Date.now()) {
+  return !draft?.deadlineAt || Number(draft.deadlineAt) <= now;
+}
+
+function findLatestValidDraft() {
+  const now = Date.now();
+  let latestDraft = null;
+
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(EXAM_DRAFT_PREFIX)) continue;
+
+      const draft = readExamDraftByKey(key);
+      if (!draft || isDraftExpired(draft, now)) {
+        removeExamDraftByKey(key);
+        continue;
+      }
+
+      if (!latestDraft || Number(draft.updatedAt || 0) > Number(latestDraft.updatedAt || 0)) {
+        latestDraft = draft;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return latestDraft;
+}
+
+function calculateRemainingSeconds(deadlineAt) {
+  if (!deadlineAt) return 0;
+  return Math.max(0, Math.ceil((Number(deadlineAt) - Date.now()) / 1000));
+}
+
+function calculateTimeSpentMinutes(startedAt, deadlineAt, durationMinutes) {
+  const durationSeconds = Math.max(0, Number(durationMinutes) || 0) * 60;
+  const elapsedSeconds = Math.max(0, Math.ceil((Date.now() - Number(startedAt || Date.now())) / 1000));
+  const cappedElapsedSeconds = durationSeconds > 0 ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
+
+  if (deadlineAt && durationSeconds > 0) {
+    const remainingSeconds = calculateRemainingSeconds(deadlineAt);
+    return Math.ceil(Math.min(durationSeconds, Math.max(0, durationSeconds - remainingSeconds)) / 60);
+  }
+
+  return Math.ceil(cappedElapsedSeconds / 60);
+}
+
 export default function Exams() {
   const { apiFetch, isLoggedIn } = useAuth();
   const [exams, setExams] = useState([]);
@@ -66,6 +159,9 @@ export default function Exams() {
   const [answers, setAnswers] = useState({});
   const [markedQuestions, setMarkedQuestions] = useState({});
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [draftMeta, setDraftMeta] = useState(null);
+  const [latestDraft, setLatestDraft] = useState(null);
+  const [exitPromptOpen, setExitPromptOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitResult, setSubmitResult] = useState(null);
@@ -101,10 +197,12 @@ export default function Exams() {
   }, [questions, reviewData]);
   const currentQuestion = displayQuestions[currentQuestionIndex];
 
-  const answeredCount = useMemo(
-    () => Object.values(answers).filter(Boolean).length,
-    [answers]
-  );
+  const answeredCount = useMemo(() => (
+    questions.filter((question) => Boolean(answers[getQuestionKey(question)])).length
+  ), [answers, questions]);
+
+  const latestDraftExamUuid = getExamUuid(latestDraft?.exam);
+  const latestDraftRemainingSeconds = latestDraft ? calculateRemainingSeconds(latestDraft.deadlineAt) : 0;
 
   useEffect(() => {
     async function loadSubjects() {
@@ -136,24 +234,75 @@ export default function Exams() {
   }, [apiFetch, appliedFilters]);
 
   useEffect(() => {
-    if (!activeExam || remainingSeconds <= 0) return undefined;
+    const draft = findLatestValidDraft();
+    if (draft) {
+      restoreDraft(draft);
+      return;
+    }
+    setLatestDraft(null);
+  }, []);
+
+  useEffect(() => {
+    if (!latestDraft) return undefined;
 
     const timerId = window.setInterval(() => {
-      setRemainingSeconds((seconds) => Math.max(0, seconds - 1));
+      setLatestDraft(findLatestValidDraft());
+    }, 30000);
+
+    return () => window.clearInterval(timerId);
+  }, [latestDraft]);
+
+  useEffect(() => {
+    if (!activeExam || isReviewMode || submitResult || !draftMeta) return undefined;
+
+    try {
+      window.localStorage.setItem(draftMeta.storageKey, JSON.stringify({
+        exam: activeExam,
+        answers,
+        markedQuestions,
+        currentQuestionIndex,
+        currentQuestionID: getQuestionId(questions[currentQuestionIndex]),
+        startedAt: draftMeta.startedAt,
+        deadlineAt: draftMeta.deadlineAt,
+        updatedAt: Date.now()
+      }));
+      setLatestDraft(findLatestValidDraft());
+    } catch {
+      // LocalStorage can be unavailable or full; do not block the exam UI.
+    }
+  }, [
+    activeExam,
+    answers,
+    currentQuestionIndex,
+    draftMeta,
+    isReviewMode,
+    markedQuestions,
+    questions,
+    submitResult
+  ]);
+
+  useEffect(() => {
+    if (!activeExam || !draftMeta || isReviewMode || submitResult) return undefined;
+
+    setRemainingSeconds(calculateRemainingSeconds(draftMeta.deadlineAt));
+
+    const timerId = window.setInterval(() => {
+      setRemainingSeconds(calculateRemainingSeconds(draftMeta.deadlineAt));
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [activeExam, remainingSeconds]);
+  }, [activeExam, draftMeta, isReviewMode, submitResult]);
 
   async function loadExamDetail(row) {
     setDetailExam(normalizeExamDetail(row));
     setDetailError("");
 
-    if (!row.uuid) return normalizeExamDetail(row);
+    const examUuid = getExamUuid(row);
+    if (!examUuid) return normalizeExamDetail(row);
 
     setDetailLoading(true);
     try {
-      const payload = await apiFetch(`/exam/${row.uuid}`);
+      const payload = await apiFetch(`/exam/${examUuid}`);
       const normalized = normalizeExamDetail(row, payload);
       setDetailExam(normalized);
       return normalized;
@@ -187,15 +336,14 @@ export default function Exams() {
     return subject?.subject_name || "Tổng hợp";
   }
 
-  function handleStartPractice() {
-    if (!detailExam) return;
-
-    setActiveExam(detailExam);
-    setDetailExam(null);
-    setCurrentQuestionIndex(0);
+  function resetPracticeState() {
+    setActiveExam(null);
     setAnswers({});
     setMarkedQuestions({});
-    setRemainingSeconds((Number(detailExam.duration) || 0) * 60);
+    setCurrentQuestionIndex(0);
+    setRemainingSeconds(0);
+    setDraftMeta(null);
+    setExitPromptOpen(false);
     setSubmitLoading(false);
     setSubmitError("");
     setSubmitResult(null);
@@ -204,40 +352,131 @@ export default function Exams() {
     setReviewLoading(false);
     setReviewError("");
     setOpenExplanations({});
+    setLatestDraft(findLatestValidDraft());
+  }
+
+  function restoreDraft(draft) {
+    if (!draft || isDraftExpired(draft)) {
+      if (draft?.storageKey) removeExamDraftByKey(draft.storageKey);
+      setLatestDraft(findLatestValidDraft());
+      return false;
+    }
+
+    const restoredExam = normalizeExamDetail(draft.exam);
+    const questionCount = restoredExam.questions?.length || 0;
+    const restoredIndex = Math.min(
+      Math.max(0, Number(draft.currentQuestionIndex) || 0),
+      Math.max(0, questionCount - 1)
+    );
+
+    setActiveExam(restoredExam);
+    setDetailExam(null);
+    setCurrentQuestionIndex(restoredIndex);
+    setAnswers(draft.answers || {});
+    setMarkedQuestions(draft.markedQuestions || {});
+    setRemainingSeconds(calculateRemainingSeconds(draft.deadlineAt));
+    setDraftMeta({
+      storageKey: draft.storageKey || getDraftKey(getExamUuid(restoredExam)),
+      startedAt: Number(draft.startedAt) || Date.now(),
+      deadlineAt: Number(draft.deadlineAt)
+    });
+    setSubmitLoading(false);
+    setSubmitError("");
+    setSubmitResult(null);
+    setResultModalOpen(false);
+    setReviewData(null);
+    setReviewLoading(false);
+    setReviewError("");
+    setOpenExplanations({});
+    setExitPromptOpen(false);
+    return true;
+  }
+
+  function startNewDraft(exam) {
+    const examUuid = getExamUuid(exam);
+    const startedAt = Date.now();
+    const durationMs = Math.max(0, Number(exam.duration) || 0) * 60 * 1000;
+    const deadlineAt = durationMs > 0 ? startedAt + durationMs : startedAt;
+    const storageKey = getDraftKey(examUuid);
+
+    setActiveExam(exam);
+    setDetailExam(null);
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setMarkedQuestions({});
+    setRemainingSeconds(calculateRemainingSeconds(deadlineAt));
+    setDraftMeta({ storageKey, startedAt, deadlineAt });
+    setSubmitLoading(false);
+    setSubmitError("");
+    setSubmitResult(null);
+    setResultModalOpen(false);
+    setReviewData(null);
+    setReviewLoading(false);
+    setReviewError("");
+    setOpenExplanations({});
+    setExitPromptOpen(false);
+  }
+
+  function handleStartPractice() {
+    if (!detailExam) return;
+
+    const examUuid = getExamUuid(detailExam);
+    const existingDraft = readExamDraft(examUuid);
+
+    if (existingDraft && !isDraftExpired(existingDraft)) {
+      const shouldContinue = window.confirm("Bạn có bài làm đang lưu cho đề này. Tiếp tục bài đang làm?");
+      if (shouldContinue) {
+        restoreDraft(existingDraft);
+        return;
+      }
+      removeExamDraft(examUuid);
+    } else if (existingDraft) {
+      removeExamDraft(examUuid);
+    }
+
+    startNewDraft(detailExam);
   }
 
   function handleSelectAnswer(optionId) {
-    if (submitResult || isReviewMode) return;
+    if (submitResult || isReviewMode || !currentQuestion) return;
+
+    const questionKey = getQuestionKey(currentQuestion);
+    if (!questionKey) return;
 
     setAnswers((current) => ({
       ...current,
-      [currentQuestionIndex]: optionId
+      [questionKey]: optionId
     }));
   }
 
   function handleToggleMark(index) {
     if (isReviewMode) return;
 
+    const questionKey = getQuestionKey(displayQuestions[index]);
+    if (!questionKey) return;
+
     setMarkedQuestions((current) => ({
       ...current,
-      [index]: !current[index]
+      [questionKey]: !current[questionKey]
     }));
   }
 
   function handleExitPractice() {
-    setActiveExam(null);
-    setAnswers({});
-    setMarkedQuestions({});
-    setCurrentQuestionIndex(0);
-    setRemainingSeconds(0);
-    setSubmitLoading(false);
-    setSubmitError("");
-    setSubmitResult(null);
-    setResultModalOpen(false);
-    setReviewData(null);
-    setReviewLoading(false);
-    setReviewError("");
-    setOpenExplanations({});
+    if (isReviewMode || submitResult) {
+      resetPracticeState();
+      return;
+    }
+
+    setExitPromptOpen(true);
+  }
+
+  function handleSaveAndExitPractice() {
+    resetPracticeState();
+  }
+
+  function handleDeleteDraftAndExitPractice() {
+    removeExamDraft(getExamUuid(activeExam));
+    resetPracticeState();
   }
 
   async function handleSubmitExam() {
@@ -250,11 +489,9 @@ export default function Exams() {
     }
 
     const submittedAnswers = [];
-    for (const [indexText, selectedOptionID] of Object.entries(answers)) {
+    for (const [questionID, selectedOptionID] of Object.entries(answers)) {
       if (!selectedOptionID) continue;
 
-      const question = questions[Number(indexText)];
-      const questionID = question?.questionID ?? question?.question_id;
       if (!questionID) {
         setSubmitError("Đề thi thiếu questionID, không thể nộp bài. Vui lòng tải lại đề.");
         return;
@@ -266,11 +503,7 @@ export default function Exams() {
       });
     }
 
-    const durationSeconds = (Number(activeExam.duration) || 0) * 60;
-    const elapsedSeconds = durationSeconds > 0
-      ? Math.max(0, durationSeconds - remainingSeconds)
-      : 0;
-    const timeSpent = Math.ceil(elapsedSeconds / 60);
+    const timeSpent = calculateTimeSpentMinutes(draftMeta?.startedAt, draftMeta?.deadlineAt, activeExam.duration);
 
     setSubmitLoading(true);
     setSubmitError("");
@@ -286,6 +519,9 @@ export default function Exams() {
       });
       setSubmitResult(result);
       setResultModalOpen(true);
+      removeExamDraft(getExamUuid(activeExam));
+      setDraftMeta(null);
+      setLatestDraft(findLatestValidDraft());
       setRemainingSeconds(0);
     } catch (error) {
       setSubmitError(error.message || "Không thể nộp bài.");
@@ -323,7 +559,8 @@ export default function Exams() {
   }
 
   if (activeExam) {
-    const selectedOptionId = isReviewMode ? getSelectedOptionId(currentQuestion) : answers[currentQuestionIndex];
+    const currentQuestionKey = getQuestionKey(currentQuestion);
+    const selectedOptionId = isReviewMode ? getSelectedOptionId(currentQuestion) : answers[currentQuestionKey];
     const correctOptionId = isReviewMode ? getCorrectOptionId(currentQuestion) : null;
     const correctState = isReviewMode ? getQuestionCorrectState(currentQuestion) : null;
     const displayCorrectOptionId = correctOptionId ?? (correctState === true ? selectedOptionId : null);
@@ -361,11 +598,11 @@ export default function Exams() {
                     <strong>Câu {currentQuestionIndex + 1}</strong>
                     {!isReviewMode && (
                       <button
-                        className={`btn-secondary btn-small ${markedQuestions[currentQuestionIndex] ? "marked" : ""}`}
+                        className={`btn-secondary btn-small ${markedQuestions[currentQuestionKey] ? "marked" : ""}`}
                         type="button"
                         onClick={() => handleToggleMark(currentQuestionIndex)}
                       >
-                        {markedQuestions[currentQuestionIndex] ? "Bỏ đánh dấu" : "Đánh dấu"}
+                        {markedQuestions[currentQuestionKey] ? "Bỏ đánh dấu" : "Đánh dấu"}
                       </button>
                     )}
                   </div>
@@ -466,8 +703,9 @@ export default function Exams() {
             </div>
             <div className="question-grid">
               {displayQuestions.map((question, index) => {
-                const answered = Boolean(answers[index]);
-                const marked = Boolean(markedQuestions[index]);
+                const questionKey = getQuestionKey(question);
+                const answered = Boolean(answers[questionKey]);
+                const marked = Boolean(markedQuestions[questionKey]);
                 const selected = getSelectedOptionId(question);
                 const correctState = getQuestionCorrectState(question);
                 const correctOption = getCorrectOptionId(question);
@@ -533,6 +771,29 @@ export default function Exams() {
             </div>
           </div>
         )}
+        {exitPromptOpen && (
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-content exam-modal">
+              <div className="modal-header">
+                <h2>Thoát bài làm?</h2>
+              </div>
+              <div className="modal-body">
+                <p className="status-info">Bạn có thể lưu tiến trình để tiếp tục sau, hoặc xóa bài làm đang lưu.</p>
+                <div className="modal-actions">
+                  <button className="btn-secondary" type="button" onClick={handleSaveAndExitPractice}>
+                    Lưu lại và thoát
+                  </button>
+                  <button className="btn-secondary" type="button" onClick={handleDeleteDraftAndExitPractice}>
+                    Thoát và xóa bài làm
+                  </button>
+                  <button className="btn-primary" type="button" onClick={() => setExitPromptOpen(false)}>
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -576,6 +837,32 @@ export default function Exams() {
           </select>
           <button className="btn-primary catalog-filter-submit" type="submit">Tìm ngay</button>
         </form>
+
+        {latestDraft && latestDraftExamUuid && (
+          <section className="content-box saved-exam-draft">
+            <div>
+              <h2>Bài làm đang lưu</h2>
+              <p>
+                {latestDraft.exam?.title || "Đề thi"} - còn {formatTime(latestDraftRemainingSeconds)}
+              </p>
+            </div>
+            <div className="exam-actions">
+              <button className="btn-primary btn-small" type="button" onClick={() => restoreDraft(latestDraft)}>
+                Tiếp tục
+              </button>
+              <button
+                className="btn-secondary btn-small"
+                type="button"
+                onClick={() => {
+                  removeExamDraftByKey(latestDraft.storageKey);
+                  setLatestDraft(findLatestValidDraft());
+                }}
+              >
+                Xóa
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="catalog-section">
           <div className="catalog-section-header">

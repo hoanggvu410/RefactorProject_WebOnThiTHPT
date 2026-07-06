@@ -17,6 +17,7 @@ from app.models.document_model import Document
 from app.models.news_model import News
 from app.models.user_answer_model import UserAnswer
 from app.models.refresh_token_model import RefreshToken
+from app.models.exam_attempt_model import ExamAttempt
 from config import get_settings
 
 # this is the Alembic Config object, which provides

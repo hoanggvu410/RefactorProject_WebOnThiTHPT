@@ -16,7 +16,7 @@ from app.routes.me_routes import router as me_router
 
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import get_settings

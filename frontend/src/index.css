@@ -1005,6 +1005,29 @@ button:disabled {
   margin-top: 20px;
 }
 
+.saved-exam-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.saved-exam-draft h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.saved-exam-draft p {
+  margin: 0;
+  color: var(--text-light);
+}
+
+.saved-exam-draft .exam-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
 .question-navigator {
   position: sticky;
   top: 96px;
@@ -1360,6 +1383,15 @@ button:disabled {
   .catalog-section-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .saved-exam-draft {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .saved-exam-draft .exam-actions {
+    width: 100%;
   }
 
   .admin-filters {
