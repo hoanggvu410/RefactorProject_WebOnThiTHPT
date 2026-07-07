@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -8,37 +8,29 @@ from app.schemas.result_schema import ReviewResultResponse
 from app.services import result_service
 from app.tests.conftest import make_db_with_first_result
 
-#test submit exam
-@pytest.mark.asyncio
-async def test_submit_exam_success(): #nop bai va tinh diem
+def test_create_result_from_answers_success():
     db = MagicMock()
-    redis_client = AsyncMock()
-    current_user = SimpleNamespace(user_id = 1)
-    input_data = SimpleNamespace(
-        exam_uuid= "exam-uuid",
-        time_spent = 60,
-        answers = [
-            SimpleNamespace(question_id= 1, selected_option_id = 1),
-            SimpleNamespace(question_id= 2, selected_option_id = 2),
-        ]
+    answers = result_service.normalize_answers([
+        SimpleNamespace(question_id=1, selected_option_id=1),
+        SimpleNamespace(question_id=2, selected_option_id=2),
+    ])
+    score, correct_count = result_service.calculate_score(
+        answers,
+        {"1": 1, "2": 3},
+        2,
     )
-    
-    #gia lap dap an lay tu cache
-    cached_answers = {
-        "exam_id":1,
-        "total_question":2,
-        "answers": {
-            "1":1,
-            "2": 3,
-        }
-    }
 
-    with patch("app.services.exam_service.get_exam_answers_cached", return_value= cached_answers):
-        result = await result_service.submit_exam(db, input_data, current_user, redis_client)
+    result = result_service.create_result_from_answers(
+        db=db,
+        user_id=1,
+        exam_id=1,
+        answers=answers,
+        score=score,
+        time_spent=60,
+    )
 
-    assert result["score"] == 5.0
-    assert result["correct_count"] ==1
-    assert result["total_question"]==2
+    assert result.score == 5.0
+    assert correct_count == 1
     assert db.add.call_count ==3 #luu 1 cho result va 2 cho user ans
     db.flush.assert_called_once()
     assert db.commit.call_count ==1
