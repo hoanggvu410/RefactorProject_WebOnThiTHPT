@@ -40,7 +40,8 @@ async def test_submit_exam_success(): #nop bai va tinh diem
     assert result["correct_count"] ==1
     assert result["total_question"]==2
     assert db.add.call_count ==3 #luu 1 cho result va 2 cho user ans
-    assert db.commit.call_count ==2 
+    db.flush.assert_called_once()
+    assert db.commit.call_count ==1
 
 #test review result
 def test_review_result_success():

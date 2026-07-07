@@ -78,34 +78,6 @@ def create_result_from_answers(db, user_id, exam_id, answers, score, time_spent,
 
     return exam_result
 
-async def submit_exam(db, data, current_user, redis_client):
-    #lay dap an
-    answer_payload = await exam_service.get_exam_answers_cached(data.exam_uuid, db, redis_client)
-    exam_id = answer_payload["exam_id"]
-    total_question = answer_payload["total_question"]
-    answer_map = answer_payload["answers"]
-
-    answers = normalize_answers(data.answers)
-    score, correct_count = calculate_score(answers, answer_map, total_question)
-
-    exam_result = create_result_from_answers(
-        db=db,
-        user_id=current_user.user_id,
-        exam_id=exam_id,
-        answers=answers,
-        score=score,
-        time_spent=data.time_spent,
-    )
-
-    return {
-        "message": "submit exam successfully",
-        "result_uuid": exam_result.uuid,
-        "score": exam_result.score,
-        "correct_count": correct_count,
-        "total_question": total_question,
-        "time_spent": exam_result.time_spent
-    }
-
 def review_result(result_uuid, db, current_user):
     result = db.query(Result).filter(Result.uuid== result_uuid).first()
     if not result:
