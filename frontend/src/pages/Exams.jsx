@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SectionTitle from "../components/SectionTitle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoExams } from "../data.js";
 
-const EXAM_DRAFT_PREFIX = "exam_draft:";
+const ACTIVE_ATTEMPT_EXAM_KEY = "active_exam_attempt_exam_uuid";
+const EXAM_ATTEMPT_API_PREFIX = "/exam-attempt";
 
 function normalizeExamDetail(row, payload) {
   const detail = payload || {};
@@ -59,86 +60,21 @@ function getQuestionCorrectState(question) {
   return question?.is_correct ?? question?.isCorrect ?? null;
 }
 
-function getDraftKey(examUuid) {
-  return `${EXAM_DRAFT_PREFIX}${examUuid}`;
-}
+function parseDeadlineMs(deadlineAt) {
+  if (!deadlineAt) return NaN;
+  if (typeof deadlineAt === "number") return deadlineAt;
 
-function readExamDraftByKey(key) {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const draft = JSON.parse(raw);
-    if (!draft?.exam || !draft?.deadlineAt) return null;
-    return { ...draft, storageKey: key };
-  } catch {
-    return null;
-  }
-}
-
-function readExamDraft(examUuid) {
-  if (!examUuid) return null;
-  return readExamDraftByKey(getDraftKey(examUuid));
-}
-
-function removeExamDraftByKey(key) {
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    // Ignore storage failures; the live exam state should keep working.
-  }
-}
-
-function removeExamDraft(examUuid) {
-  if (!examUuid) return;
-  removeExamDraftByKey(getDraftKey(examUuid));
-}
-
-function isDraftExpired(draft, now = Date.now()) {
-  return !draft?.deadlineAt || Number(draft.deadlineAt) <= now;
-}
-
-function findLatestValidDraft() {
-  const now = Date.now();
-  let latestDraft = null;
-
-  try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key?.startsWith(EXAM_DRAFT_PREFIX)) continue;
-
-      const draft = readExamDraftByKey(key);
-      if (!draft || isDraftExpired(draft, now)) {
-        removeExamDraftByKey(key);
-        continue;
-      }
-
-      if (!latestDraft || Number(draft.updatedAt || 0) > Number(latestDraft.updatedAt || 0)) {
-        latestDraft = draft;
-      }
-    }
-  } catch {
-    return null;
-  }
-
-  return latestDraft;
+  const deadlineText = String(deadlineAt);
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(deadlineText);
+  const normalizedDeadline = hasTimezone ? deadlineText : `${deadlineText}Z`;
+  return new Date(normalizedDeadline).getTime();
 }
 
 function calculateRemainingSeconds(deadlineAt) {
   if (!deadlineAt) return 0;
-  return Math.max(0, Math.ceil((Number(deadlineAt) - Date.now()) / 1000));
-}
-
-function calculateTimeSpentMinutes(startedAt, deadlineAt, durationMinutes) {
-  const durationSeconds = Math.max(0, Number(durationMinutes) || 0) * 60;
-  const elapsedSeconds = Math.max(0, Math.ceil((Date.now() - Number(startedAt || Date.now())) / 1000));
-  const cappedElapsedSeconds = durationSeconds > 0 ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
-
-  if (deadlineAt && durationSeconds > 0) {
-    const remainingSeconds = calculateRemainingSeconds(deadlineAt);
-    return Math.ceil(Math.min(durationSeconds, Math.max(0, durationSeconds - remainingSeconds)) / 60);
-  }
-
-  return Math.ceil(cappedElapsedSeconds / 60);
+  const deadlineMs = parseDeadlineMs(deadlineAt);
+  if (!Number.isFinite(deadlineMs)) return 0;
+  return Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
 }
 
 export default function Exams() {
@@ -160,7 +96,6 @@ export default function Exams() {
   const [markedQuestions, setMarkedQuestions] = useState({});
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [draftMeta, setDraftMeta] = useState(null);
-  const [latestDraft, setLatestDraft] = useState(null);
   const [exitPromptOpen, setExitPromptOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -170,6 +105,7 @@ export default function Exams() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [openExplanations, setOpenExplanations] = useState({});
+  const timerReadyRef = useRef(false);
 
   const questions = activeExam?.questions || [];
   const isReviewMode = Boolean(reviewData);
@@ -201,9 +137,6 @@ export default function Exams() {
     questions.filter((question) => Boolean(answers[getQuestionKey(question)])).length
   ), [answers, questions]);
 
-  const latestDraftExamUuid = getExamUuid(latestDraft?.exam);
-  const latestDraftRemainingSeconds = latestDraft ? calculateRemainingSeconds(latestDraft.deadlineAt) : 0;
-
   useEffect(() => {
     async function loadSubjects() {
       try {
@@ -234,44 +167,50 @@ export default function Exams() {
   }, [apiFetch, appliedFilters]);
 
   useEffect(() => {
-    const draft = findLatestValidDraft();
-    if (draft) {
-      restoreDraft(draft);
-      return;
+    async function restoreActiveAttempt() {
+      if (!isLoggedIn) return;
+
+      const examUuid = window.localStorage.getItem(ACTIVE_ATTEMPT_EXAM_KEY);
+      if (!examUuid) return;
+
+      try {
+        const attempt = await apiFetch(`${EXAM_ATTEMPT_API_PREFIX}/current?exam_uuid=${encodeURIComponent(examUuid)}`);
+        if (attempt?.status === "in_progress") {
+          restoreAttempt(attempt);
+          return;
+        }
+        window.localStorage.removeItem(ACTIVE_ATTEMPT_EXAM_KEY);
+      } catch {
+        // Keep normal exam listing available if restoring the attempt fails.
+      }
     }
-    setLatestDraft(null);
-  }, []);
 
-  useEffect(() => {
-    if (!latestDraft) return undefined;
-
-    const timerId = window.setInterval(() => {
-      setLatestDraft(findLatestValidDraft());
-    }, 30000);
-
-    return () => window.clearInterval(timerId);
-  }, [latestDraft]);
+    restoreActiveAttempt();
+  }, [apiFetch, isLoggedIn]);
 
   useEffect(() => {
     if (!activeExam || isReviewMode || submitResult || !draftMeta) return undefined;
 
-    try {
-      window.localStorage.setItem(draftMeta.storageKey, JSON.stringify({
-        exam: activeExam,
-        answers,
-        markedQuestions,
-        currentQuestionIndex,
-        currentQuestionID: getQuestionId(questions[currentQuestionIndex]),
-        startedAt: draftMeta.startedAt,
-        deadlineAt: draftMeta.deadlineAt,
-        updatedAt: Date.now()
-      }));
-      setLatestDraft(findLatestValidDraft());
-    } catch {
-      // LocalStorage can be unavailable or full; do not block the exam UI.
+    async function saveAttempt() {
+      if (!draftMeta.attemptUuid) return;
+
+      try {
+        await apiFetch(`${EXAM_ATTEMPT_API_PREFIX}/${draftMeta.attemptUuid}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            answers,
+            current_question_id: getQuestionId(questions[currentQuestionIndex]) || null
+          })
+        });
+      } catch {
+        // Autosave failures should not block answering. The next change will retry.
+      }
     }
+
+    saveAttempt();
   }, [
     activeExam,
+    apiFetch,
     answers,
     currentQuestionIndex,
     draftMeta,
@@ -284,14 +223,36 @@ export default function Exams() {
   useEffect(() => {
     if (!activeExam || !draftMeta || isReviewMode || submitResult) return undefined;
 
-    setRemainingSeconds(calculateRemainingSeconds(draftMeta.deadlineAt));
+    const initialRemainingSeconds = calculateRemainingSeconds(draftMeta.deadlineAt);
+    timerReadyRef.current = initialRemainingSeconds > 0;
+    setRemainingSeconds(initialRemainingSeconds);
 
     const timerId = window.setInterval(() => {
-      setRemainingSeconds(calculateRemainingSeconds(draftMeta.deadlineAt));
+      const nextRemainingSeconds = calculateRemainingSeconds(draftMeta.deadlineAt);
+      if (nextRemainingSeconds > 0) {
+        timerReadyRef.current = true;
+      }
+      setRemainingSeconds(nextRemainingSeconds);
     }, 1000);
 
     return () => window.clearInterval(timerId);
   }, [activeExam, draftMeta, isReviewMode, submitResult]);
+
+  useEffect(() => {
+    if (
+      !activeExam
+      || !draftMeta
+      || isReviewMode
+      || submitLoading
+      || submitResult
+      || remainingSeconds > 0
+      || !timerReadyRef.current
+    ) {
+      return;
+    }
+
+    submitCurrentAttempt({ confirmUnanswered: false });
+  }, [activeExam, draftMeta, isReviewMode, remainingSeconds, submitLoading, submitResult]);
 
   async function loadExamDetail(row) {
     setDetailExam(normalizeExamDetail(row));
@@ -343,6 +304,7 @@ export default function Exams() {
     setCurrentQuestionIndex(0);
     setRemainingSeconds(0);
     setDraftMeta(null);
+    timerReadyRef.current = false;
     setExitPromptOpen(false);
     setSubmitLoading(false);
     setSubmitError("");
@@ -352,34 +314,39 @@ export default function Exams() {
     setReviewLoading(false);
     setReviewError("");
     setOpenExplanations({});
-    setLatestDraft(findLatestValidDraft());
   }
 
-  function restoreDraft(draft) {
-    if (!draft || isDraftExpired(draft)) {
-      if (draft?.storageKey) removeExamDraftByKey(draft.storageKey);
-      setLatestDraft(findLatestValidDraft());
-      return false;
-    }
+  function restoreAttempt(attempt) {
+    if (!attempt?.exam) return false;
 
-    const restoredExam = normalizeExamDetail(draft.exam);
+    const restoredExam = normalizeExamDetail(attempt.exam);
     const questionCount = restoredExam.questions?.length || 0;
+    const currentQuestionId = attempt.current_question_id == null ? "" : String(attempt.current_question_id);
+    const currentQuestionFromAttempt = restoredExam.questions?.findIndex(
+      (question) => getQuestionKey(question) === currentQuestionId
+    );
     const restoredIndex = Math.min(
-      Math.max(0, Number(draft.currentQuestionIndex) || 0),
+      Math.max(0, currentQuestionFromAttempt >= 0 ? currentQuestionFromAttempt : 0),
       Math.max(0, questionCount - 1)
     );
 
     setActiveExam(restoredExam);
     setDetailExam(null);
     setCurrentQuestionIndex(restoredIndex);
-    setAnswers(draft.answers || {});
-    setMarkedQuestions(draft.markedQuestions || {});
-    setRemainingSeconds(calculateRemainingSeconds(draft.deadlineAt));
+    setAnswers(attempt.answers || {});
+    setMarkedQuestions({});
+    const restoredRemainingSeconds = Number.isFinite(Number(attempt.remaining_seconds))
+      ? Number(attempt.remaining_seconds)
+      : calculateRemainingSeconds(attempt.deadline_at);
+    setRemainingSeconds(restoredRemainingSeconds);
+    timerReadyRef.current = restoredRemainingSeconds > 0;
     setDraftMeta({
-      storageKey: draft.storageKey || getDraftKey(getExamUuid(restoredExam)),
-      startedAt: Number(draft.startedAt) || Date.now(),
-      deadlineAt: Number(draft.deadlineAt)
+      attemptUuid: attempt.attempt_uuid,
+      examUuid: attempt.exam_uuid || getExamUuid(restoredExam),
+      startedAt: attempt.started_at,
+      deadlineAt: attempt.deadline_at
     });
+    window.localStorage.setItem(ACTIVE_ATTEMPT_EXAM_KEY, attempt.exam_uuid || getExamUuid(restoredExam));
     setSubmitLoading(false);
     setSubmitError("");
     setSubmitResult(null);
@@ -392,49 +359,32 @@ export default function Exams() {
     return true;
   }
 
-  function startNewDraft(exam) {
-    const examUuid = getExamUuid(exam);
-    const startedAt = Date.now();
-    const durationMs = Math.max(0, Number(exam.duration) || 0) * 60 * 1000;
-    const deadlineAt = durationMs > 0 ? startedAt + durationMs : startedAt;
-    const storageKey = getDraftKey(examUuid);
-
-    setActiveExam(exam);
-    setDetailExam(null);
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setMarkedQuestions({});
-    setRemainingSeconds(calculateRemainingSeconds(deadlineAt));
-    setDraftMeta({ storageKey, startedAt, deadlineAt });
-    setSubmitLoading(false);
-    setSubmitError("");
-    setSubmitResult(null);
-    setResultModalOpen(false);
-    setReviewData(null);
-    setReviewLoading(false);
-    setReviewError("");
-    setOpenExplanations({});
-    setExitPromptOpen(false);
-  }
-
-  function handleStartPractice() {
+  async function handleStartPractice() {
     if (!detailExam) return;
 
     const examUuid = getExamUuid(detailExam);
-    const existingDraft = readExamDraft(examUuid);
-
-    if (existingDraft && !isDraftExpired(existingDraft)) {
-      const shouldContinue = window.confirm("Bạn có bài làm đang lưu cho đề này. Tiếp tục bài đang làm?");
-      if (shouldContinue) {
-        restoreDraft(existingDraft);
-        return;
-      }
-      removeExamDraft(examUuid);
-    } else if (existingDraft) {
-      removeExamDraft(examUuid);
+    if (!examUuid) {
+      setDetailError("Đề thi thiếu exam_uuid, không thể bắt đầu làm bài.");
+      return;
     }
 
-    startNewDraft(detailExam);
+    setDetailLoading(true);
+    setDetailError("");
+
+    try {
+      const attempt = await apiFetch(`${EXAM_ATTEMPT_API_PREFIX}/start`, {
+        method: "POST",
+        body: JSON.stringify({ exam_uuid: examUuid })
+      });
+      restoreAttempt({
+        ...attempt,
+        exam: attempt.exam || detailExam
+      });
+    } catch (error) {
+      setDetailError(error.message || "Không thể bắt đầu bài thi.");
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   function handleSelectAnswer(optionId) {
@@ -475,59 +425,52 @@ export default function Exams() {
   }
 
   function handleDeleteDraftAndExitPractice() {
-    removeExamDraft(getExamUuid(activeExam));
+    window.localStorage.removeItem(ACTIVE_ATTEMPT_EXAM_KEY);
     resetPracticeState();
   }
 
-  async function handleSubmitExam() {
+  async function submitCurrentAttempt({ confirmUnanswered = true } = {}) {
     if (!activeExam || submitLoading || submitResult) return;
 
     const unansweredCount = Math.max(0, questions.length - answeredCount);
-    if (unansweredCount > 0) {
+    if (confirmUnanswered && unansweredCount > 0) {
       const confirmed = window.confirm(`Bạn còn ${unansweredCount} câu chưa trả lời. Bạn vẫn muốn nộp bài?`);
       if (!confirmed) return;
     }
 
-    const submittedAnswers = [];
-    for (const [questionID, selectedOptionID] of Object.entries(answers)) {
-      if (!selectedOptionID) continue;
-
-      if (!questionID) {
-        setSubmitError("Đề thi thiếu questionID, không thể nộp bài. Vui lòng tải lại đề.");
-        return;
-      }
-
-      submittedAnswers.push({
-        questionID,
-        selectedOptionID
-      });
+    if (!draftMeta?.attemptUuid) {
+      setSubmitError("Bài thi thiếu attempt_uuid, không thể nộp bài. Vui lòng tải lại đề.");
+      return;
     }
-
-    const timeSpent = calculateTimeSpentMinutes(draftMeta?.startedAt, draftMeta?.deadlineAt, activeExam.duration);
 
     setSubmitLoading(true);
     setSubmitError("");
 
     try {
-      const result = await apiFetch("/results/submit-exam", {
-        method: "POST",
+      await apiFetch(`${EXAM_ATTEMPT_API_PREFIX}/${draftMeta.attemptUuid}`, {
+        method: "PATCH",
         body: JSON.stringify({
-          exam_uuid: activeExam.exam_uuid || activeExam.uuid,
-          answers: submittedAnswers,
-          time_spent: timeSpent
+          answers,
+          current_question_id: getQuestionId(questions[currentQuestionIndex]) || null
         })
+      });
+      const result = await apiFetch(`${EXAM_ATTEMPT_API_PREFIX}/${draftMeta.attemptUuid}/submit`, {
+        method: "POST"
       });
       setSubmitResult(result);
       setResultModalOpen(true);
-      removeExamDraft(getExamUuid(activeExam));
+      window.localStorage.removeItem(ACTIVE_ATTEMPT_EXAM_KEY);
       setDraftMeta(null);
-      setLatestDraft(findLatestValidDraft());
       setRemainingSeconds(0);
     } catch (error) {
       setSubmitError(error.message || "Không thể nộp bài.");
     } finally {
       setSubmitLoading(false);
     }
+  }
+
+  async function handleSubmitExam() {
+    await submitCurrentAttempt();
   }
 
   async function handleStayReview() {
@@ -565,6 +508,11 @@ export default function Exams() {
     const correctState = isReviewMode ? getQuestionCorrectState(currentQuestion) : null;
     const displayCorrectOptionId = correctOptionId ?? (correctState === true ? selectedOptionId : null);
     const currentQuestionCount = displayQuestions.length;
+    const timerClass = remainingSeconds <= 300
+      ? "danger"
+      : remainingSeconds <= 600
+        ? "warning"
+        : "normal";
 
     return (
       <>
@@ -583,7 +531,7 @@ export default function Exams() {
               {isReviewMode ? (
                 <div className="exam-timer review">Đã nộp</div>
               ) : (
-                <div className={`exam-timer ${remainingSeconds <= 300 ? "danger" : ""}`}>
+                <div className={`exam-timer ${timerClass}`}>
                   {formatTime(remainingSeconds)}
                 </div>
               )}
@@ -837,33 +785,6 @@ export default function Exams() {
           </select>
           <button className="btn-primary catalog-filter-submit" type="submit">Tìm ngay</button>
         </form>
-
-        {latestDraft && latestDraftExamUuid && (
-          <section className="content-box saved-exam-draft">
-            <div>
-              <h2>Bài làm đang lưu</h2>
-              <p>
-                {latestDraft.exam?.title || "Đề thi"} - còn {formatTime(latestDraftRemainingSeconds)}
-              </p>
-            </div>
-            <div className="exam-actions">
-              <button className="btn-primary btn-small" type="button" onClick={() => restoreDraft(latestDraft)}>
-                Tiếp tục
-              </button>
-              <button
-                className="btn-secondary btn-small"
-                type="button"
-                onClick={() => {
-                  removeExamDraftByKey(latestDraft.storageKey);
-                  setLatestDraft(findLatestValidDraft());
-                }}
-              >
-                Xóa
-              </button>
-            </div>
-          </section>
-        )}
-
         <section className="catalog-section">
           <div className="catalog-section-header">
             <h2>Đề thi nổi bật</h2>

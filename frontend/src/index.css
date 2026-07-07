@@ -976,6 +976,18 @@ button:disabled {
   padding: 12px 16px;
 }
 
+.exam-timer.normal {
+  border-color: #d7f0de;
+  background: #eaf8ef;
+  color: #176b32;
+}
+
+.exam-timer.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
 .exam-timer.danger {
   border-color: #ffd8d2;
   background: #fff0ed;

@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import app
+from app.routes import exam_attempt_routes
 from app.routes.user_routes import router as user_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.subject_routes import router as subject_router
@@ -12,7 +13,7 @@ from app.routes.question_routes import router as question_router
 from app.routes.exam_routes import router as exam_router
 from app.routes.results_routes import router as result_router
 from app.routes.me_routes import router as me_router
-
+from app.routes.exam_attempt_routes import router as exam_attempt_router
 
 
 from fastapi import FastAPI, HTTPException, Request
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     app.include_router(exam_router)
     app.include_router(result_router)
     app.include_router(me_router)
+    app.include_router(exam_attempt_router)
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

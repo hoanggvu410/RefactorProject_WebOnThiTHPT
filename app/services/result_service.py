@@ -1,9 +1,10 @@
+from types import SimpleNamespace
+
 from fastapi import HTTPException
 from app.models.exam_model import Exam
 from app.models.question_option_model import QuestionOption
 from app.models.result_model import Result
 from app.models.user_answer_model import UserAnswer
-from app.schemas.exam_schema import SubmitExam
 from app.schemas.question_schema import ReviewQuestionResponse
 from app.schemas.result_schema import ReviewResultResponse
 from app.services import exam_service
@@ -21,6 +22,62 @@ def get_my_result(exam_uuid, current_user, db):
         raise HTTPException(404, {"code": "RESULT_NOT_FOUND", "message": "Result not found"})
     return result
 
+def normalize_answers(answers):
+    normalized = []
+    for answer in answers or []:
+        if isinstance(answer, dict):
+            question_id = answer.get("question_id") or answer.get("questionID")
+            selected_option_id = answer.get("selected_option_id") or answer.get("selectedOptionID")
+        else:
+            question_id = answer.question_id
+            selected_option_id = answer.selected_option_id
+
+        if question_id and selected_option_id:
+            normalized.append(SimpleNamespace(
+                question_id=int(question_id),
+                selected_option_id=int(selected_option_id),
+            ))
+
+    return normalized
+
+def calculate_score(answers, answer_map, total_question):
+    correct_count = 0
+    for ans in answers:
+            correct_option_id = answer_map.get(str(ans.question_id))
+
+            if correct_option_id == ans.selected_option_id:
+                correct_count += 1
+            
+    score = round((correct_count / total_question) * 10, 2) if total_question > 0 else 0
+    return score, correct_count
+
+def create_result_from_answers(db, user_id, exam_id, answers, score, time_spent, commit: bool = True):
+    # Luu ket qua bai thi
+    exam_result = Result(
+        user_id=user_id,
+        exam_id=exam_id,
+        score=score,
+        time_spent=time_spent
+    )
+
+    db.add(exam_result)
+    db.flush()
+
+    # Luu dap an user da chon
+    for ans in answers:
+        user_answers = UserAnswer(
+            result_id=exam_result.result_id,
+            question_id=ans.question_id,
+            selected_option_id=ans.selected_option_id
+        )
+        db.add(user_answers)
+
+    if commit:
+        db.commit()
+        db.refresh(exam_result)
+
+    return exam_result
+
 async def submit_exam(db, data, current_user, redis_client):
     #lay dap an
     answer_payload = await exam_service.get_exam_answers_cached(data.exam_uuid, db, redis_client)
@@ -28,37 +85,17 @@ async def submit_exam(db, data, current_user, redis_client):
     total_question = answer_payload["total_question"]
     answer_map = answer_payload["answers"]
 
-    correct_count = 0
+    answers = normalize_answers(data.answers)
+    score, correct_count = calculate_score(answers, answer_map, total_question)
 
-    for ans in data.answers:
-            correct_option_id = answer_map.get(str(ans.question_id))
-
-            if correct_option_id == ans.selected_option_id:
-                correct_count += 1
-            
-    score = round((correct_count / total_question) * 10, 2) if total_question > 0 else 0
-
-    # Luu ket qua bai thi
-    exam_result = Result(
-        user_id = current_user.user_id,
-        exam_id = exam_id,
-        score = score,
-        time_spent = data.time_spent
+    exam_result = create_result_from_answers(
+        db=db,
+        user_id=current_user.user_id,
+        exam_id=exam_id,
+        answers=answers,
+        score=score,
+        time_spent=data.time_spent,
     )
-
-    db.add(exam_result)
-    db.commit()
-    db.refresh(exam_result)
-
-    # Luu dap an user da chon
-    for ans in data.answers:
-        user_answers = UserAnswer(
-            result_id = exam_result.result_id,
-            question_id = ans.question_id,
-            selected_option_id = ans.selected_option_id
-        )
-        db.add(user_answers)
-    db.commit()
 
     return {
         "message": "submit exam successfully",

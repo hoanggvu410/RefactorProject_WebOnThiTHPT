@@ -8,7 +8,10 @@ celery_app = Celery(
     "onthi_tasks",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.mail_tasks"],
+    include=[
+        "app.tasks.mail_tasks",
+        "app.tasks.exam_attempt_tasks",
+    ],
 )
 
 celery_app.conf.update(
