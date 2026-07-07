@@ -17,14 +17,20 @@ def get_documents(params: DocumentQueryParams = Depends(), db: Session = Depends
 
 @router.get("/{document_uuid}")
 def get_document(document_uuid: UUID, db: Session = Depends(get_db)):
-    document = db.query(Document).filter(Document.uuid == document_uuid).first()
+    document = db.query(Document).filter(
+        Document.uuid == document_uuid,
+        Document.is_deleted.is_(False),
+    ).first()
     if not document:
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
     return document
 
 @router.put("/{document_uuid}", dependencies = [Depends(require_roles("giáo viên", "admin"))])
 def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = Depends(get_db)):
-    document = db.query(Document).filter(Document.uuid == document_uuid).first()
+    document = db.query(Document).filter(
+        Document.uuid == document_uuid,
+        Document.is_deleted.is_(False),
+    ).first()
     if not document:
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
     document.title = payload.title
@@ -35,10 +41,13 @@ def update_document(document_uuid: UUID, payload: CreateDocument, db: Session = 
 
 @router.delete("/{document_uuid}", dependencies = [Depends(require_roles("giáo viên", "admin"))])
 def delete_document(document_uuid: UUID, db: Session = Depends(get_db)):
-    document = db.query(Document).filter(Document.uuid == document_uuid).first()
+    document = db.query(Document).filter(
+        Document.uuid == document_uuid,
+        Document.is_deleted.is_(False),
+    ).first()
     if not document:
         raise HTTPException(404, {"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"})
-    db.delete(document)
+    document.is_deleted = True
     db.commit()
     return {"message": "Document deleted successfully"}
 

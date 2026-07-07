@@ -11,7 +11,10 @@ from app.services import exam_service
 
 
 def get_my_result(exam_uuid, current_user, db):
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
     result = db.query(Result).filter(

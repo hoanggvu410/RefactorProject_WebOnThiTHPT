@@ -14,7 +14,7 @@ from app.services.question_service import create_question, get_creator_uuid
 
 
 def get_exams(params: ExamQueryParams, db):
-    query = db.query(Exam)
+    query = db.query(Exam).filter(Exam.is_deleted.is_(False))
 
     #filter
     if params.subject_id is not None:
@@ -103,7 +103,10 @@ def create_exam(exam_data, db, current_user):
         raise
 
 def update_exam(exam_uuid, exam_data, db):
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
 
@@ -122,19 +125,23 @@ def update_exam(exam_uuid, exam_data, db):
     return {"message": "Exam updated successfully"}
 
 def delete_exam(exam_uuid, db):
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
 
-    db.delete(exam)
+    exam.is_deleted = True
     db.commit()
     return {"message": "Exam deleted successfully"}
 
 def build_public_exam_payload(exam):
+        questions = [question for question in exam.questions if not getattr(question, "is_deleted", False)]
         return{
             "exam_uuid": str(exam.uuid),
             "title": exam.title,
-            "questionNumber": exam.question_number,
+            "questionNumber": len(questions),
             "duration": exam.duration,
             "questions": [
                 {
@@ -149,14 +156,15 @@ def build_public_exam_payload(exam):
                         for option in question.question_options
                     ]
                 }
-                for question in exam.questions
+                for question in questions
             ]
         }
     
 def build_exam_answer_payload(exam):
         answers = {}
+        questions = [question for question in exam.questions if not getattr(question, "is_deleted", False)]
 
-        for question in exam.questions:
+        for question in questions:
             correct_option = next(
                 (option for option in question.question_options if option.is_correct),
             None
@@ -166,24 +174,24 @@ def build_exam_answer_payload(exam):
 
         return {
             "exam_id": exam.exam_id,
-            "total_question": exam.question_number,
+            "total_question": len(questions),
             "answers": answers
         }
 
 async def get_public_exam_cached(exam_uuid, db, redis_client):
     cache_key = f"exam:public:{exam_uuid}"
 
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
+    if not exam:
+        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
+
     #cache hit
     cached = await redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
-    
-    #cached miss
-    exam = (
-        db.query(Exam).filter(Exam.uuid == exam_uuid).first()
-    )
-    if not exam:
-        raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
 
     payload = build_public_exam_payload(exam)
     await redis_client.set(
@@ -196,20 +204,21 @@ async def get_public_exam_cached(exam_uuid, db, redis_client):
 
 async def get_exam_answers_cached(exam_uuid, db, redis_client):
     cache_key = f"exam:anwers:{exam_uuid}"
-    cached = await redis_client.get(cache_key)
-
-    #cache hit
-    if cached:
-        return json.loads(cached)
-    
-    #cache miss
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
 
     if not exam:
         raise HTTPException(404, {
             "code": "EXAM_NOT_FOUND",
             "message": "Exam not found"
         })
+
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
     payload = build_exam_answer_payload(exam)
 
     await redis_client.set(

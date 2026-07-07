@@ -16,7 +16,10 @@ def get_news(params: NewsQueryParams = Depends(), db: Session = Depends(get_db))
 
 @router.get("/{news_uuid}")
 def get_single_news(news_uuid: UUID, db: Session = Depends(get_db)):
-    news = db.query(News).filter(News.uuid == news_uuid).first()
+    news = db.query(News).filter(
+        News.uuid == news_uuid,
+        News.is_deleted.is_(False),
+    ).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})
     return news
@@ -40,7 +43,10 @@ def create_news(news: CreateNews, db: Session = Depends(get_db), dependencies = 
 
 @router.put("/{news_uuid}")
 def update_news(news_uuid: UUID, payload: CreateNews, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
-    news = db.query(News).filter(News.uuid == news_uuid).first()
+    news = db.query(News).filter(
+        News.uuid == news_uuid,
+        News.is_deleted.is_(False),
+    ).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})
     news.title = payload.title
@@ -52,9 +58,12 @@ def update_news(news_uuid: UUID, payload: CreateNews, db: Session = Depends(get_
 
 @router.delete("/{news_uuid}")
 def delete_news(news_uuid: UUID, db: Session = Depends(get_db), dependencies = Depends(require_roles("giáo viên", "admin"))):
-    news = db.query(News).filter(News.uuid == news_uuid).first()
+    news = db.query(News).filter(
+        News.uuid == news_uuid,
+        News.is_deleted.is_(False),
+    ).first()
     if not news:
         raise HTTPException(404, {"code": "NEWS_NOT_FOUND", "message": "News not found"})
-    db.delete(news)
+    news.is_deleted = True
     db.commit()
     return {"message": "News deleted successfully"}

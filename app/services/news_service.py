@@ -2,7 +2,7 @@ from app.models.news_model import News
 
 
 def get_news(params, db):
-    query = db.query(News)
+    query = db.query(News).filter(News.is_deleted.is_(False))
 
     # search
     if params.keyword is not None:

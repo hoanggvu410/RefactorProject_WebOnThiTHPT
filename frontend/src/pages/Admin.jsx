@@ -21,6 +21,10 @@ function getResourcePath(resourceKey, row) {
   return `${resourceConfig[resourceKey].endpoint}${uuid}`;
 }
 
+function isProtectedAdmin(row) {
+  return row?.role === "admin";
+}
+
 function normalizeDateInput(value) {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -574,6 +578,11 @@ export default function Admin() {
   }
 
   async function handleOpenEditModal(resourceKey, row) {
+    if (resourceKey === "users" && isProtectedAdmin(row)) {
+      showToast("Tài khoản admin hệ thống không thể sửa tại bảng quản trị.");
+      return;
+    }
+
     setEditModal({
       open: true,
       loading: resourceKey === "questions",
@@ -677,6 +686,11 @@ export default function Admin() {
   }
 
   async function handleToggleUserActive(row) {
+    if (isProtectedAdmin(row)) {
+      showToast("Tài khoản admin hệ thống không thể khóa.");
+      return;
+    }
+
     const uuid = getRowUuid(row);
     if (!uuid) return;
 
@@ -700,6 +714,11 @@ export default function Admin() {
   }
 
   async function handleDeleteResource(resourceKey, row) {
+    if (resourceKey === "users" && isProtectedAdmin(row)) {
+      showToast("Tài khoản admin hệ thống không thể xóa.");
+      return;
+    }
+
     const uuid = getRowUuid(row);
     if (!uuid) return;
 
@@ -880,6 +899,7 @@ export default function Admin() {
     const uuid = getRowUuid(row);
     const deleteLoading = actionLoading === `${resourceKey}:${uuid}:delete`;
     const activeLoading = actionLoading === `${uuid}:active`;
+    const protectedAdmin = resourceKey === "users" && isProtectedAdmin(row);
 
     return (
       <div className="admin-row-actions">
@@ -893,22 +913,27 @@ export default function Admin() {
               type="button"
               disabled={activeLoading}
               onClick={() => handleToggleUserActive(row)}
+              hidden={protectedAdmin}
             >
               {row.is_active === false ? "Mở khóa" : "Khóa"}
             </button>
           </>
         )}
-        <button className="btn-secondary btn-small" type="button" onClick={() => handleOpenEditModal(resourceKey, row)}>
-          Sửa
-        </button>
-        <button
-          className="btn-secondary btn-small danger"
-          type="button"
-          disabled={deleteLoading}
-          onClick={() => handleDeleteResource(resourceKey, row)}
-        >
-          Xóa
-        </button>
+        {!protectedAdmin && (
+          <>
+            <button className="btn-secondary btn-small" type="button" onClick={() => handleOpenEditModal(resourceKey, row)}>
+              Sửa
+            </button>
+            <button
+              className="btn-secondary btn-small danger"
+              type="button"
+              disabled={deleteLoading}
+              onClick={() => handleDeleteResource(resourceKey, row)}
+            >
+              Xóa
+            </button>
+          </>
+        )}
       </div>
     );
   }

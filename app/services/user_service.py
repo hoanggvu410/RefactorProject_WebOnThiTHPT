@@ -7,7 +7,7 @@ from app.models.user_model import User
 
 
 def get_users(params, db):
-    query = db.query(User)
+    query = db.query(User).filter(User.is_deleted.is_(False))
 
     # filter
     if params.username is not None:
@@ -50,11 +50,11 @@ def get_users(params, db):
     }
 
 def get_admin_stats(db):
-    total_users = db.query(func.count(User.user_id)).scalar() or 0
-    total_students = db.query(func.count(User.user_id)).filter(User.role == "student").scalar() or 0
-    total_teachers = db.query(func.count(User.user_id)).filter(User.role == "giáo viên").scalar() or 0
-    total_exams = db.query(func.count(Exam.exam_id)).scalar() or 0
-    total_questions = db.query(func.count(Question.question_id)).scalar() or 0
+    total_users = db.query(func.count(User.user_id)).filter(User.is_deleted.is_(False)).scalar() or 0
+    total_students = db.query(func.count(User.user_id)).filter(User.is_deleted.is_(False), User.role == "student").scalar() or 0
+    total_teachers = db.query(func.count(User.user_id)).filter(User.is_deleted.is_(False), User.role == "giáo viên").scalar() or 0
+    total_exams = db.query(func.count(Exam.exam_id)).filter(Exam.is_deleted.is_(False)).scalar() or 0
+    total_questions = db.query(func.count(Question.question_id)).filter(Question.is_deleted.is_(False)).scalar() or 0
     total_submissions = db.query(func.count(Result.result_id)).scalar() or 0
     avg_score = db.query(func.avg(Result.score)).scalar()
 
@@ -69,9 +69,14 @@ def get_admin_stats(db):
     }
 
 def update_user_active_status(user_uuid, payload, db):
-    user = db.query(User).filter(User.uuid == user_uuid).first()
+    user = db.query(User).filter(
+        User.uuid == user_uuid,
+        User.is_deleted.is_(False),
+    ).first()
     if not user:
         return None
+    if user.role == "admin":
+        return "protected_admin"
 
     user.is_active = payload.is_active
     db.commit()

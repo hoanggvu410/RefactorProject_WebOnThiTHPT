@@ -65,6 +65,18 @@ def  verify_password(plain_password, hashed_password):
 
     return pwd_context.verify(plain_password, hashed_password)
 
+def ensure_user_can_authenticate(user):
+    if not user or getattr(user, "is_deleted", False):
+        raise HTTPException(404, {
+            'code': "USER_NOT_FOUND",
+            'message': "User not found"
+        })
+    if not getattr(user, "is_active", True):
+        raise HTTPException(403, {
+            'code': "USER_INACTIVE",
+            'message': "User is inactive"
+        })
+
 #hash token
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
@@ -78,6 +90,12 @@ def register(db, data):
         raise HTTPException(400, {
             'code': "USER_ALREADY_EXISTS",
             'message': "User already exists"
+        })
+    email_user = db.query(User).filter(User.email == data.email).first()
+    if email_user:
+        raise HTTPException(400, {
+            'code': "EMAIL_ALREADY_EXISTS",
+            'message': "Email already exists"
         })
     # tao user moi
     new_user = User(
@@ -117,12 +135,7 @@ def create_token(db, user):
 #login
 def login(db, data):
     user = db.query(User).filter(User.username == data.username).first()
-
-    if not user:
-        raise HTTPException(404, {
-            'code': "USER_NOT_FOUND",
-            'message': "User not found"
-        })
+    ensure_user_can_authenticate(user)
     if not verify_password(data.password, user.password):
         raise HTTPException(401, {
             'code': "INCORRECT_PASSWORD",
@@ -160,6 +173,7 @@ def refresh_access_token(db, data):
             "code":"REFRESH_TOKEN_EXPIRED",
             "message": "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại"
         })
+    ensure_user_can_authenticate(token_record.user)
 
     new_access_token = create_access_token(data={
         "sub": token_record.user.username,
@@ -200,6 +214,7 @@ async def logout(data, credentials, redis_client, db):
 #change password
 def change_password(db, current_user, data):
     user = db.query(User).filter(User.user_id == current_user.user_id).first()
+    ensure_user_can_authenticate(user)
     if not verify_password(data.current_password, user.password):
         raise HTTPException(401, {
             'code': "INCORRECT_CURRENT_PASSWORD",
@@ -214,11 +229,7 @@ PASSWORD_RESET_PREFIX = "password_reset_otp:"
 
 async def send_verify_email(db, current_user, redis_client):
     user = db.query(User).filter(User.user_id == current_user.user_id).first()
-    if not user:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
+    ensure_user_can_authenticate(user)
     
     verify_token = secrets.token_urlsafe(32)
     redis_key = f"{EMAIL_VERIFY_PREFIX}{verify_token}"
@@ -246,11 +257,7 @@ async def verify_email(db, data, redis_client):
         })
 
     user = db.query(User).filter(User.user_id == int(user_id)).first()
-    if not user:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
+    ensure_user_can_authenticate(user)
 
     user.email_verified = True
     db.commit()
@@ -262,7 +269,7 @@ async def verify_email(db, data, redis_client):
 async def forgot_password(db, data, redis_client):
     user = db.query(User).filter(User.email == data.email).first()
 
-    if not user: 
+    if not user or getattr(user, "is_deleted", False) or not getattr(user, "is_active", True):
         raise HTTPException(400, {
             "code": "USER_UNKOWN",
             "message": "Nguoi dung khong hop le"
@@ -285,7 +292,7 @@ async def forgot_password(db, data, redis_client):
 async def verify_reset_otp(db, data, redis_client):
     user = db.query(User).filter(User.email == data.email).first()
 
-    if not user:
+    if not user or getattr(user, "is_deleted", False) or not getattr(user, "is_active", True):
         raise HTTPException(400, {
             "code": "USER_UNKNOWN",
             "message": "Nguoi dung khong hop le"
@@ -346,11 +353,7 @@ async def reset_password(db, data, redis_client):
         })
 
     user = db.query(User).filter(User.user_id == int(user_id)).first()
-    if not user:
-        raise HTTPException(404, {
-            "code": "USER_NOT_FOUND",
-            "message": "User not found"
-        })
+    ensure_user_can_authenticate(user)
     
     #doi mat khau
     user.password = hash_password(data.new_password)
@@ -396,6 +399,7 @@ def get_or_create_oauth_user(db, user_info):
     ).first()
 #neu co roi thi giu nguyen, neu chua thi lay cua google
     if user:
+        ensure_user_can_authenticate(user)
         user.name =user.name or name
         user.avatar_url = user.avatar_url or avatar_url
         user.email_verified = True
@@ -407,6 +411,7 @@ def get_or_create_oauth_user(db, user_info):
     user = db.query(User).filter(User.email == email).first()
 
     if user:
+        ensure_user_can_authenticate(user)
         user.oauth_provider = "google"
         user.oauth_subject = google_sub
         user.email_verified = True

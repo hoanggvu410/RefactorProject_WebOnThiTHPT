@@ -128,6 +128,25 @@ def test_login_with_user_not_found():
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["code"] == "USER_NOT_FOUND"
 
+def test_login_with_deleted_user():
+    user = SimpleNamespace(
+        username="student01",
+        password="hashed password",
+        is_deleted=True,
+        is_active=False,
+    )
+    db = make_db_with_first_result(user)
+    data = SimpleNamespace(
+        username="student01",
+        password="123456",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        auth_service.login(db, data)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "USER_NOT_FOUND"
+
 def test_login_with_wrong_password():
     user = SimpleNamespace(
         username = "student01",

@@ -1,3 +1,4 @@
+from configparser import RawConfigParser
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -23,6 +24,7 @@ from config import get_settings
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+config.file_config = RawConfigParser()
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -82,7 +84,6 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

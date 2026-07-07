@@ -10,7 +10,7 @@ from app.schemas.question_schema import QuestionQueryParams
 
 
 def get_questions(params: QuestionQueryParams, db):
-    query = db.query(Question)
+    query = db.query(Question).filter(Question.is_deleted.is_(False))
 
     # filter
     if params.subject_id is not None:
@@ -58,7 +58,10 @@ def get_creator_uuid(db, current_user):
     if getattr(current_user, "uuid", None):
         return current_user.uuid
 
-    user = db.query(User).filter(User.user_id == current_user.user_id).first()
+    user = db.query(User).filter(
+        User.user_id == current_user.user_id,
+        User.is_deleted.is_(False),
+    ).first()
     if not user:
         raise HTTPException(404, {"code": "USER_NOT_FOUND", "message": "User not found"})
     return user.uuid
@@ -99,7 +102,10 @@ def create_question(question_data, db, current_user, commit: bool = True, **_kwa
         raise 
 
 def update_question(question_uuid, question_data, db):
-    question = db.query(Question).filter(Question.uuid == question_uuid).first()
+    question = db.query(Question).filter(
+        Question.uuid == question_uuid,
+        Question.is_deleted.is_(False),
+    ).first()
     if not question:
         raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
 
@@ -132,10 +138,13 @@ def update_question(question_uuid, question_data, db):
     return question
 
 def delete_question(question_uuid, db):
-    question = db.query(Question).filter(Question.uuid == question_uuid).first()
+    question = db.query(Question).filter(
+        Question.uuid == question_uuid,
+        Question.is_deleted.is_(False),
+    ).first()
     if not question:
         raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
 
-    db.delete(question)
+    question.is_deleted = True
     db.commit()
     return {"message": "Question deleted successfully"}

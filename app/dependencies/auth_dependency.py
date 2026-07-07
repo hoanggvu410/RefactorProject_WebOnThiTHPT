@@ -33,7 +33,11 @@ async def get_current_user(
         })
 
 #query user tu db luon
-    user = db.query(User).filter(User.user_id == user_id).first()
+    user = db.query(User).filter(
+        User.user_id == user_id,
+        User.is_deleted.is_(False),
+        User.is_active.is_(True),
+    ).first()
     if not user:
         raise HTTPException(404, {
             'code': "USER_NOT_FOUND",
@@ -55,4 +59,3 @@ def require_roles(*roles: str):
             )
         return current_user
     return role_checker
-

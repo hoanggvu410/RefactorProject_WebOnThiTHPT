@@ -28,7 +28,10 @@ def serialize_attempt(attempt, exam_payload=None):
         "exam": exam_payload,
     }
 async def start_attempt(db, exam_uuid: UUID, current_user, redis_client):
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
 
@@ -94,7 +97,10 @@ def save_attempt(db, attempt_uuid: UUID, data, current_user):
 
 
 async def get_current_attempt(db, exam_uuid: UUID, current_user, redis_client):
-    exam = db.query(Exam).filter(Exam.uuid == exam_uuid).first()
+    exam = db.query(Exam).filter(
+        Exam.uuid == exam_uuid,
+        Exam.is_deleted.is_(False),
+    ).first()
     if not exam:
         raise HTTPException(404, {"code": "EXAM_NOT_FOUND", "message": "Exam not found"})
 

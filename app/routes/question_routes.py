@@ -13,7 +13,10 @@ router = APIRouter(prefix="/questions", tags=["Questions"], dependencies=[Depend
 
 @router.get("/{question_uuid}", response_model=QuestionResponse)
 def get_questions_by_id(question_uuid: UUID, db: Session = Depends(get_db)):
-    question = db.query(Question).filter(Question.uuid == question_uuid).first()
+    question = db.query(Question).filter(
+        Question.uuid == question_uuid,
+        Question.is_deleted.is_(False),
+    ).first()
     if not question:
         raise HTTPException(404, {"code": "QUESTION_NOT_FOUND", "message": "Question not found"})
     return QuestionResponse(

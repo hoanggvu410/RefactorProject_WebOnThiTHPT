@@ -13,16 +13,26 @@ from app.tests.conftest import make_db_with_first_result
 #test ham get_public_exam_cached
 @pytest.mark.asyncio
 async def test_get_public_exam_cached_hit():
-    db = MagicMock()
+    exam_uuid = "1"
+    mock_exam = SimpleNamespace(
+        exam_id=1,
+        uuid=exam_uuid,
+        title="Math Exam",
+        question_number=0,
+        duration=90,
+        questions=[],
+    )
+    db = make_db_with_first_result(mock_exam)
     redis_client = AsyncMock()
 
     #gia lap lay data tu redis
     redis_client.get.return_value = '{"exam_uuid": "1", "title":"math exam"}'
 
-    result = await exam_service.get_public_exam_cached("1", db, redis_client)
+    result = await exam_service.get_public_exam_cached(exam_uuid, db, redis_client)
 
     assert result["title"]
-    db.query.assert_not_called() #khong query tu db, dam bao lay data tu cache redis
+    db.query.assert_called_once()
+    redis_client.set.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_get_public_exam_cached_miss():
@@ -96,6 +106,17 @@ async def test_get_public_exam_cached_not_found():
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["code"] == "EXAM_NOT_FOUND"
+
+def test_delete_exam_soft_deletes():
+    exam = SimpleNamespace(is_deleted=False)
+    db = make_db_with_first_result(exam)
+
+    result = exam_service.delete_exam("exam-uuid", db)
+
+    assert result == {"message": "Exam deleted successfully"}
+    assert exam.is_deleted is True
+    db.delete.assert_not_called()
+    db.commit.assert_called_once()
 
 def test_create_exam_uses_question_service_without_intermediate_commit(monkeypatch):
     class FakeExam:

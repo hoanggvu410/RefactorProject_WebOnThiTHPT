@@ -10,7 +10,7 @@ from config import get_settings
 
 
 def get_documents(params: DocumentQueryParams, db):
-    query = db.query(Document)
+    query = db.query(Document).filter(Document.is_deleted.is_(False))
 
     # filter
     if params.subject_id is not None:
