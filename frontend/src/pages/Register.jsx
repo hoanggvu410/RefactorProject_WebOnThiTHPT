@@ -40,7 +40,9 @@ export default function Register() {
       showToast("Đăng ký thành công. Bạn có thể đăng nhập ngay.");
       window.location.hash = "#/";
     } catch (registerError) {
-      setError(registerError.message || "Không thể đăng ký tài khoản.");
+      const message = registerError.message || "Không thể đăng ký tài khoản.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setSubmitting(false);
     }

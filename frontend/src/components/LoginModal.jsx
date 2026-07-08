@@ -109,7 +109,9 @@ export default function LoginModal({ open, onClose }) {
         setNewPassword("");
       }
     } catch (submitError) {
-      setError(submitError.message || "Không thể xử lý yêu cầu.");
+      const message = submitError.message || "Không thể xử lý yêu cầu.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setSubmitting(false);
     }

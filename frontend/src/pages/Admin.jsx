@@ -579,7 +579,7 @@ export default function Admin() {
 
   async function handleOpenEditModal(resourceKey, row) {
     if (resourceKey === "users" && isProtectedAdmin(row)) {
-      showToast("Tài khoản admin hệ thống không thể sửa tại bảng quản trị.");
+      showToast("Tài khoản admin hệ thống không thể sửa tại bảng quản trị.", "error");
       return;
     }
 
@@ -687,7 +687,7 @@ export default function Admin() {
 
   async function handleToggleUserActive(row) {
     if (isProtectedAdmin(row)) {
-      showToast("Tài khoản admin hệ thống không thể khóa.");
+      showToast("Tài khoản admin hệ thống không thể khóa.", "error");
       return;
     }
 
@@ -707,7 +707,7 @@ export default function Admin() {
       await loadAdminStats();
       showToast(nextActive ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.");
     } catch (error) {
-      showToast(error.message || "Không thể cập nhật trạng thái tài khoản.");
+      showToast(error.message || "Không thể cập nhật trạng thái tài khoản.", "error");
     } finally {
       setActionLoading("");
     }
@@ -715,7 +715,7 @@ export default function Admin() {
 
   async function handleDeleteResource(resourceKey, row) {
     if (resourceKey === "users" && isProtectedAdmin(row)) {
-      showToast("Tài khoản admin hệ thống không thể xóa.");
+      showToast("Tài khoản admin hệ thống không thể xóa.", "error");
       return;
     }
 
@@ -734,7 +734,7 @@ export default function Admin() {
       if (resourceKey === "users" || resourceKey === "exams" || resourceKey === "questions") await loadAdminStats();
       showToast("Đã xóa dữ liệu.");
     } catch (error) {
-      showToast(error.message || "Không thể xóa dữ liệu.");
+      showToast(error.message || "Không thể xóa dữ liệu.", "error");
     } finally {
       setActionLoading("");
     }

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, parseJwt } from "../services/api.js";
 
 const AuthContext = createContext(null);
@@ -13,16 +13,23 @@ export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => localStorage.getItem("access_token") || "");
   const [refreshToken, setRefreshTokenState] = useState(() => localStorage.getItem("refresh_token") || "");
   const [me, setMe] = useState(null);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const toastTimerRef = useRef(null);
 
   const tokenPayload = useMemo(() => parseJwt(token), [token]);
   const isLoggedIn = Boolean(token && tokenPayload);
   const role = me?.role || tokenPayload?.role || "student";
   const displayName = me?.name || tokenPayload?.name || tokenPayload?.sub || "Người dùng";
 
-  const showToast = useCallback((message) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 3000);
+  const showToast = useCallback((message, type = "success") => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    setToast({ message, type });
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast({ message: "", type: "success" });
+      toastTimerRef.current = null;
+    }, 3000);
   }, []);
 
   const setToken = useCallback((nextToken) => {
@@ -54,7 +61,7 @@ export function AuthProvider({ children }) {
 
   const handleExpiredSession = useCallback(() => {
     clearSession();
-    showToast(SESSION_EXPIRED_MESSAGE);
+    showToast(SESSION_EXPIRED_MESSAGE, "error");
     window.dispatchEvent(new Event("auth:expired"));
   }, [clearSession, showToast]);
 

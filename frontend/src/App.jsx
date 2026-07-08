@@ -53,7 +53,7 @@ export default function App() {
       return;
     }
     if (protectedRoutes.has(routeBase) && !isLoggedIn) {
-      showToast("Đăng nhập thành công");
+      showToast("Bạn cần đăng nhập để tiếp tục.", "error");
       window.location.hash = "#/";
       setRoute("#/");
       return;
@@ -89,7 +89,7 @@ export default function App() {
       </main>
       <Footer />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <Toast message={toast} />
+      <Toast toast={toast} />
     </div>
   );
 }
