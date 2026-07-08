@@ -92,10 +92,7 @@ export default function Navbar({ route, onLoginClick }) {
               )}
             </div>
           ) : (
-            <>
-              <a className="btn-secondary nav-register-link" href="#/register">Đăng ký</a>
-              <button className="btn-login" type="button" onClick={onLoginClick}>Đăng nhập</button>
-            </>
+            <button className="btn-login" type="button" onClick={onLoginClick}>Đăng nhập</button>
           )}
         </div>
       </div>
