@@ -127,7 +127,7 @@ def create_app() -> FastAPI:
 
     if FRONTEND_DIST_DIR.exists():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")
-    else:
+    elif FRONTEND_DIR.exists():
         app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 # CORS configuration - cho phep frontend goi api tu cac nguon/domain khac nhau
