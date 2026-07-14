@@ -30,7 +30,7 @@ async def test_get_public_exam_cached_hit():
 
     result = await exam_service.get_public_exam_cached(exam_uuid, db, redis_client)
 
-    assert result["title"]
+    assert result["title"] == "math exam"
     db.query.assert_called_once()
     redis_client.set.assert_not_called()
 
