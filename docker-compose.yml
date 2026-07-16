@@ -4,10 +4,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:8000
+       -  VITE_API_BASE_URL=${VITE_API_BASE_URL}
     container_name: onthi_frontend
     ports:
-      - "5173:80"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - api
   api:
@@ -26,15 +28,15 @@ services:
     volumes:
       - uploads_data:/code/uploads
     depends_on:
-      db: 
+      db:
         condition: service_healthy
-      redis: 
+      redis:
         condition: service_healthy
     command: >
       sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
-  
+
   celery_worker:
-    build: 
+    build:
       context: .
       dockerfile: app/Dockerfile
     container_name: onthi_celery_worker
@@ -44,6 +46,7 @@ services:
       DATABASE_URL: postgresql://postgres:123456@db:5432/postgres
       REDIS_URL: redis://redis:6379/0
       UPLOAD_DIR: /code/uploads
+      PYTHONPATH: /code
     volumes:
       - uploads_data:/code/uploads
     depends_on:
@@ -61,21 +64,16 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
       POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    volumes: 
+    volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
-    
   redis:
     image: redis:7
     container_name: onthi_redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

@@ -86,10 +86,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "refactor-project-web-on-thi-thpt-orcin.vercel.app",
-        "http://localhost:5173",
-    ],
+    allow_origins=["http://54.255.41.201.nip.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
