@@ -98,7 +98,7 @@ async def reset_password(
 @router.get("/google/login")
 async def google_login(request: Request):
     redirect_uri = settings.google_redirect_uri
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
